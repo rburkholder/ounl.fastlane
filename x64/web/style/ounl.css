@@ -1,0 +1,660 @@
+/*
+ 1787281582 2017 Mastering CSS: A guided journey through modern CSS.pdf
+ is useful, and provided a link to this reset (pg 35)):
+*/
+
+/* 
+other (supposedly) top books:
+1118008189 2011 HTML and CSS: Design and Build Websites.pdf
+1449372635 2015 CSS Secrets: Better Solutions to Everyday Web Design Problems.pdf
+1449325947 2013 CSS3: The Missing Manual by David Sawyer Mcfarland.pdf
+*/
+
+/* http://meyerweb.com/eric/tools/css/reset/ 
+   v2.0 | 20110126
+   License: none (public domain)
+*/
+
+html, body, div, span, applet, object, iframe,
+h1, h2, h3, h4, h5, h6, p, blockquote, pre,
+a, abbr, acronym, address, big, cite, code,
+del, dfn, em, img, ins, kbd, q, s, samp,
+small, strike, strong, sub, sup, tt, var,
+b, u, i, center,
+dl, dt, dd, ol, ul, li,
+fieldset, form, label, legend,
+table, caption, tbody, tfoot, thead, tr, th, td,
+article, aside, canvas, details, embed, 
+figure, figcaption, footer, header, hgroup, 
+menu, nav, output, ruby, section, summary,
+time, mark, audio, video {
+	margin: 0;
+	padding: 0;
+	border: 0;
+	font-size: 100%;
+	font: inherit;
+	vertical-align: baseline;
+}
+/* HTML5 display-role reset for older browsers */
+article, aside, details, figcaption, figure, 
+footer, header, hgroup, menu, nav, section {
+	display: block;
+}
+body { /* pg 42 adjustment */
+  line-height: 1.4;
+  font-family: Arial, Helvetica, sans-serif;
+}
+ol, ul {
+	list-style: none;
+}
+blockquote, q {
+	quotes: none;
+}
+blockquote:before, blockquote:after,
+q:before, q:after {
+	content: '';
+	content: none;
+}
+table {
+	border-collapse: collapse;
+	border-spacing: 0;
+}
+
+/* pg 42 additions */
+/* micro clear fix */
+/* pg 99 for IE7 applicability */
+.grouping:before,
+.grouping:after {
+  content: " ";
+  display: table;
+  }
+.grouping:after {
+  clear: both;
+  }
+
+/* other fixes */
+img, iframe, video, object {
+  max-width: 100%;
+  }
+
+/* pg 43 additions */
+strong, b {
+  font-weight: bold;
+  }
+
+/*
+  pg 115 Modular styles
+*/
+
+.float-left {
+  float: left;
+  }
+.float-right {
+  float: right;
+  }
+.clear {
+  clear: both;
+  }
+.bold {
+  font-weight: bold;
+  }
+.hidden, .hide {
+  display: none;
+  }
+.relative {
+  position: relative;
+  }
+.absolute {
+  position: absolute;
+  }
+.block {
+  display: block;
+  }
+.inline-block {
+  display: inline-block;
+  }
+.text-centered {
+  text-align: center;
+  }
+  
+/* TODO: use an alternate css reset kit (compare the two first): https://github.com/necolas/normalize.css/blob/master/normalize.css */
+  
+
+/* Palette URL: http://paletton.com/#uid=4130u1kl7md6JtdbIoDudjPEhfhkl7md6JtdbIoDudjPEhfhkl7md6JtdbIoDudjPEhfhkl7md6JtdbIoDudjPEhfh */
+/* http://paletton.com */
+:root {
+  --color-primary-0: #B18F3C;	/* Main Primary color */
+  --color-primary-1: #E9DAB8;
+  --color-primary-2: #C4AF7C;
+  --color-primary-3: #9E7209;
+  --color-primary-4: #7A5600;
+
+  --color-secondary-1-0: #493179;	/* Main Secondary color (1) */
+  --color-secondary-1-1: #8B819F;
+  --color-secondary-1-2: #685A86;
+  --color-secondary-1-3: #2E106C;
+  --color-secondary-1-4: #1F0653;
+
+  --color-secondary-2-0: #285D6F;	/* Main Secondary color (2) */
+  --color-secondary-2-1: #748A91;
+  --color-secondary-2-2: #4F707B;
+  --color-secondary-2-3: #094C63;
+  --color-secondary-2-4: #023A4C;
+
+  --color-complement-0: #333F79;	/* Main Complement color */
+  --color-complement-1: #82879F;
+  --color-complement-2: #5B6386;
+  --color-complement-3: #13226C;
+  --color-complement-4: #071553;
+  
+  --color-invalid-1: #FFFB98;
+}
+
+/*
+  global generic
+*/
+::-moz-selection {
+  /* background-color: #eb2428 */
+  background-color: var(--color-complement-3);
+}
+
+::selection {
+  /* background-color: #eb2428 */
+  background-color: var(--color-complement-2);
+}
+
+.wrapper {
+  width: 960px;
+  margin: 0 auto;
+}
+
+body {
+  background-color: var(--color-primary-1);
+  font-family: Arial, Helvetica, sans-serif;
+  font-weight: 100;
+  font-size: 16px
+}
+
+a {
+  text-decoration: none;
+  /* color: #eb2428 */
+  color: var(--color-primary-0);
+}
+
+h1 {
+  font-weight: 700;
+  font-size: 80px;
+  /* color: #0072ae; */
+  margin-bottom: 10px;
+}
+
+h2 {
+  font-weight: 700;
+  font-size: 30px;
+  /* color: #eb2428; */
+  margin-bottom: 10px;
+}
+
+p {
+  line-heigh: 1.6;
+  margin-bottom: 20px;
+}
+
+/*
+  Main CSS Codings follows
+*/
+
+html {
+  /* position:relative; */
+  /* min-height: 100%; */
+  height: 100%;
+}
+
+body {
+  /* display: flex; */
+  /* flex-direction: column; */
+  height: 100%;
+  min-height: 100%;
+}
+
+.classTitle {
+  font-size: 40px;
+  font-weight: bold;
+  color: #0072ae;
+  background-color: black;
+  padding: 50px;
+  border: 10px solid blue;
+  margin: 50px;
+  box-sizing: border-box;
+  display: block;
+  text-align: center;
+}
+
+.classBoxFullWidth {
+  background-color: var(--color-complement-3);
+  /* box-sizing: border-box; */
+  display: block;
+  padding: 4px;
+  margin-top: 2px;
+  margin-bottom: 0px;
+  margin-right: 0px;
+  margin-left: 0px;
+}
+
+.classHeader {
+  background-color: var(--color-complement-3);
+  box-sizing: border-box;
+  display: block;
+}
+
+.classHeaderBanner {
+  background-color: var(--color-complement-3);
+  display: inline;
+  /* float: left; */
+}
+
+.classBanner {
+  background-color: var(--color-complement-3);
+  padding: 2px;
+  align: left;
+  margin: 2px;
+  display: inline;
+}
+
+.classBackground {
+  background-color: var(--color-complement-3);
+}
+
+.classHeaderContactInfo {
+  background-color: var(--color-complement-3);
+  display: inline;
+  float: right;
+  padding: 10px;
+}
+
+.classHeaderText {
+  background-color: var(--color-complement-3);
+  color: var(--color-primary-1);
+  display: block;
+}
+
+.classBoxFullText {
+  background-color: var(--color-complement-3);
+  color: var(--color-primary-1);
+  display: inline;
+  padding: 1px;
+  margin: 1px;
+}
+
+a:link {
+  color: var(--color-primary-1);
+  /* text-decoration: none; */
+}
+
+a:visited {
+  color: var(--color-primary-2);
+  /* text-decoration: none; */
+}
+
+a:hover {
+  color: var(--color-primary-3);
+  /* text-decoration: none; */
+}
+
+a:active {
+  color: var(--color-primary-4);
+  /* text-decoration: none; */
+}
+
+.classMenuBlock {
+  background-color: var(--color-complement-3);
+  display:block;
+  padding: 2px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  margin-right: 5px;
+  margin-left: 5px;
+}
+
+/* not used at the moment
+.classPersonalizationBlock {
+  background-color: var(--color-complement-3);
+  float: right;
+  display: inline;
+  padding: 2px;
+  margin-top: 0px;
+  margin-bottom: 0px;
+  margin-right: 5px;
+  margin-left: 5px;
+}
+*/
+
+/* commented out as it interferes with Wt auto hide of sub-menu */
+/* .container div ul { */
+/*  display:inline; */ /* ie fix followed by real element */
+/*  display:inline-block; */
+/*} */
+
+.navbar {
+  min-height: 38px;
+}
+
+.navbar-nav > li > a {
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+.classMenuLeft {
+}
+
+.classMenuRight {
+/*  float:right; */
+}
+
+.classMenuPersonal {
+/*  float:right; */
+}
+
+.classMenuItem {
+  background-color: var(--color-complement-3);
+  color: var(--color-primary-1);
+}
+
+.classMenuItem a span {
+  /* border-style: solid; */
+  /* border-width: 1px; */
+  /* border-color: var(--color-complement-1); */
+  background-color: var(--color-complement-3);
+  color: var(--color-primary-1);
+}
+
+.navbar .nav > li.classMenuItem > a:hover,
+.navbar .nav > li.classMenuItem > a.active {
+  background-color: var(--color-complement-2);
+  color: var(--color-primary-1);
+}
+
+/* interferes with vertical popup menu (display: inline-block) */
+/* .container li { */
+  /* with fix for IE */
+/*  display:inline; */
+/*  display:inline-block; */ /* primary tool */
+/*  zoom:1; */
+  /*padding-left:10px;*/
+/*  padding-right:10px; */
+/* } */
+
+.itemselected { /* part of navbar-inner */
+  font-weight: bold;
+}
+
+.classSeparator a {
+  color: var(--color-primary-0);
+}
+
+.classBoxFullWidthBottom {
+  background-color: var(--color-complement-3);
+  display: block;
+  /* position: absolute; */
+  /* bottom: 0; */
+  /* left: 0; */
+  /* right: 0; */
+  width: 100%;
+  padding: 4px;
+}
+  
+.classBody { /* default is Wt-ltr (left to right) */
+}
+
+.classOverallContent {
+  /* height: 100%; */
+  min-height: 100%;
+  /* margin-bottom: -50px; */
+}
+
+.classContent {
+  /* background-color: var(--color-complement-3); */
+  /* box-sizing: border-box; */
+  display: block;
+  padding: 4px;
+  /* margin-bottom: -40px; *//* Height of footer*/
+  min-height: 100%;
+  /* height: auto !important; */
+  flex: 1;
+}
+
+.classFloatLeft {
+  float: left;
+  margin: 3px 10px 3px 0;
+}
+.classFloatRight {
+  float: right;
+  margin: 3px 0 3px 10px;
+}
+
+/* error */
+
+.classError {
+  margin-top: 30px;
+  margin-left: 40px;
+  margin-right: 40px;
+  /* margin-bottom: 30px; */
+}
+
+.classErrorMessage {
+  display: block;
+  color:crimson;
+}
+
+/* notification - TODO: fix naming */
+
+.classNotice {
+  margin-top: 30px;
+  margin-left: 40px;
+  margin-right: 40px;
+  /* margin-bottom: 30px; */
+}
+
+.classNotifyMessage {
+  display: block;
+  color:  var(--color-secondary-2-0);
+}
+
+/* default content - TODO check applicability */
+
+.classDefaultContent {
+  display: block;
+  padding: 30px;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  margin-right: 50px;
+  margin-left: 50px;
+  /* background: white; */
+  /* border-color: var(--color-secondary-2-2); */
+  border-width: 4px;
+}
+
+.classDefaultContent ul {
+  list-style-type: disc;
+}
+
+.classDefaultContent li {
+  margin-top: 10px;
+  margin-bottom: 0px;
+  width:  300px;
+}
+
+/** form **/
+
+.classForm {
+  margin: 0 auto;
+  /* margin: 10px; */
+  /* background: white; */
+  /* width: 900px; */
+  width: 80%;
+  /* border-width: 1px; */
+  padding: 50px;
+}
+
+.classForm a:link {
+  /* float: right; */
+  color: var(--color-secondary-1-4);
+  /* text-decoration: none; */
+}
+
+.classForm a:visited {
+  color: var(--color-secondary-2-4);
+  /* text-decoration: none; */
+}
+
+.classForm a:hover {
+  color: var(--color-primary-4);
+  /* text-decoration: none; */
+}
+
+.classForm a:active {
+  color: var(--color-primary-3);
+  /* text-decoration: none; */
+}
+
+.classForm .classHeader {
+  text-align: center;
+  background-color: var(--color-complement-0);
+  color: var(--color-primary-1);
+}
+.classForm .classInputRow {
+  /* top right bottom left */
+  margin: 3px 6px 3px 6px;
+  padding-left:  4px;
+  padding-right: 4px;
+  /* with fix for IE */
+/*   display:inline; */
+/*  display:inline-block; */  /* primary tool */
+  display: block; 
+/*  zoom:1; */
+  /* margin-left: auto; */
+  /* margin-right: auto; */
+  /* margin-top: 3px; */
+  /* margin-bottom: 3px; */
+  /* background-color: white; */
+}
+
+.classForm .classInputRow label {
+/*  display: inline-block; */
+  text-align: right;
+  width: 210px;
+  margin-right: 7px;
+  vertical-align: top;
+  padding-top: 4px;
+  /* )display:inline-block; */ /* primary tool */
+}
+
+.classForm .classInputRow input {
+  width: 230px;
+  /* display:inline-block; */ /* primary tool */
+}
+
+.classForm .classInputRow input[type=radio] {
+  width: 20px;
+  margin-right: 5px;
+  /* display:inline-block; */ /* primary tool */
+}
+
+.classForm .classInputRow textarea {
+  width: 600px;
+  /* display:inline-block; */ /* primary tool */
+}
+
+.classFooter {
+  text-align: center;
+  /* )background-color: var(--color-complement-0); */
+}
+
+.classForm .classFooter button {
+  padding-left: 20px;
+  padding-right: 20px;
+}
+
+.classForm .classInputRow .classGroupBoxRadioButton {
+  display: inline;
+}
+
+.classGroupBoxRadioButton .classInputRadioButton {
+  /*width: 150px;*/
+}
+
+.classForm .classInputRow .classGroupBoxRadioButton label {
+  width: auto;
+  text-align: left;
+  vertical-align: middle;
+}
+
+/* https://www.dummies.com/web-design-development/css3/using-the-div-tag-to-create-tables/ */
+
+.classTable {
+  display: table;
+}
+
+.classTableTitle {
+  display: table-caption;
+}
+
+.classTableRow {
+  display: table-row;
+}
+
+.classTableHeading {
+  display: table-row;
+  font-weight: bold;
+  text-align: center;
+}
+
+.classTableCell {
+  display: table-cell;
+  border: solid;
+  border-width: thin;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.classTextInset {
+  display: inline-block;
+  background-color: white;
+  padding: 30px;
+  margin: 15px;
+  border-color: var(--color-primary-4);
+  border-style: outset;
+  border-width: 3px;
+  border-radius: 15px;
+}
+
+.classTextInset ul {
+  list-style: outside;
+}
+
+.classTextInset a:link {
+  /* float: right; */
+  color: var(--color-secondary-1-4);
+  /* text-decoration: none; */
+}
+
+.classTextInset a:visited {
+  color: var(--color-secondary-2-4);
+  /* text-decoration: none; */
+}
+
+.classTextInset a:hover {
+  color: var(--color-primary-4);
+  /* text-decoration: none; */
+}
+
+.classTextInset a:active {
+  color: var(--color-primary-3);
+  /* text-decoration: none; */
+}
+
+.Wt-invalid {
+  background-color: var(--color-invalid-1);
+}
+
+/** anything below is deprecated and to be removed **/
