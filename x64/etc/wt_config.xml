@@ -105,7 +105,7 @@
 	       When a session remains inactive for this amount of time, it is
 	       cleaned up.
 	      -->
-	    <timeout>600</timeout>
+	    <timeout>60</timeout>  <!-- was 600 -->
 
             <!-- Idle timeout (seconds).
 
@@ -207,7 +207,7 @@
 	   (e.g. for apache + fastcgi module), or on stderr (e.g. for
 	   the built-in httpd).
          -->
-	<log-file></log-file>
+	<log-file>run1.log</log-file>
 
 	<!-- Logger configuration
 
@@ -504,7 +504,7 @@
 
            (Not to be confused with the Twitter Bootstrap theme)
 	  -->
-	<progressive-bootstrap>false</progressive-bootstrap>
+	<progressive-bootstrap>true</progressive-bootstrap>
 
 	<!-- Set session-ID cookie
 
