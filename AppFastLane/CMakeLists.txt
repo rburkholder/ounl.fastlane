@@ -23,11 +23,14 @@ find_package(Boost 1.69.0 REQUIRED COMPONENTS system log log_setup program_optio
 
 #message("boost lib: ${Boost_LIBRARIES}")
 
+set(SRC_LINUX /usr/src/linux-4.19.39)
+
 set(
   file_h
     AppManager.h
     AppFastLane.h
     Server.h
+    bpf/user/Load.h
   )
   
 set(
@@ -37,6 +40,8 @@ set(
     AppFastLane.cpp
     Server.cpp
     main.cpp
+    bpf/user/Load.cpp
+    ${SRC_LINUX}/samples/bpf/bpf_load.c
   )
   
 add_executable( 
@@ -49,12 +54,14 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC BOOST_LOG_DYN_LINK BOOST_ASIO_
 
 target_include_directories(
   ${PROJECT_NAME} PUBLIC 
-    ".." 
+    ".."
+    ${SRC_LINUX}
   )
 
 target_link_directories(
   ${PROJECT_NAME} PUBLIC 
     /usr/local/lib
+    ${SRC_LINUX}/tools/lib/bpf
   )
   
 target_link_libraries(
@@ -65,6 +72,8 @@ target_link_libraries(
     ${Boost_LIBRARIES}
     crypto
     ssl
+    bpf
+    elf
   )  
   
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
