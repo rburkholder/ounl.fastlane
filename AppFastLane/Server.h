@@ -4,8 +4,7 @@
  * Author:    raymond@burkholder.net
  * copyright: 2019 Raymond Burkholder
  * License:   GPL3
- *
- * Created on October 14, 2018, 12:08 PM
+ * Created:   2019/08/16
  */
 
 #ifndef SERVER_H

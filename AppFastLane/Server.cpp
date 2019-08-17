@@ -1,10 +1,9 @@
 /*
  * File:      Server.cpp
- * Project:   AppOneUnifiedNetLimited
+ * Project:   AppFastLane
  * Author:    raymond@burkholder.net
- * copyright: 2018 Raymond Burkholder
+ * copyright: 2019 Raymond Burkholder
  * License:   GPL3
- *
  * Created on October 14, 2018, 12:08 PM
  */
 

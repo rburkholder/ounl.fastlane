@@ -24,4 +24,3 @@ private:
 };
 
 #endif /* SERVERMANAGER_H */
-
