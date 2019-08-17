@@ -14,6 +14,8 @@ class Load {
 public:
   Load();
   ~Load();
+protected:
+private:
 };
 
 #endif /* APPFASTLANE_BPF_USER_LOAD_H_ */

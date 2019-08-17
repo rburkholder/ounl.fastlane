@@ -37,7 +37,6 @@ private:
 
   void BuildInitialPage();
 
-
 };
 
 #endif /* APPFASTLANE_APPFASTLANE_H_ */

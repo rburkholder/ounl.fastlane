@@ -34,6 +34,11 @@ set(
   )
   
 set(
+  file_c
+    ${SRC_LINUX}/samples/bpf/bpf_load.c
+  )
+
+set(
   file_cpp
     asio_ssl.cpp
     AppManager.cpp
@@ -41,13 +46,13 @@ set(
     Server.cpp
     main.cpp
     bpf/user/Load.cpp
-    ${SRC_LINUX}/samples/bpf/bpf_load.c
   )
   
 add_executable( 
   ${PROJECT_NAME}
     ${file_h}
     ${file_cpp}
+    ${file_c}
   )
   
 target_compile_definitions(${PROJECT_NAME} PUBLIC BOOST_LOG_DYN_LINK BOOST_ASIO_SEPARATE_COMPILATION )
@@ -56,6 +61,10 @@ target_include_directories(
   ${PROJECT_NAME} PUBLIC 
     ".."
     ${SRC_LINUX}
+#    ${SRC_LINUX}/tools/lib/bpf
+#    ${SRC_LINUX}/tools/lib
+#    ${SRC_LINUX}/tools/include
+#    ${SRC_LINUX}/tools/perf
   )
 
 target_link_directories(
@@ -77,6 +86,8 @@ target_link_libraries(
   )  
   
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
+
+SET_SOURCE_FILES_PROPERTIES( ${file_c} PROPERTIES LANGUAGE C )
   
 # https://cmake.org/cmake/help/v3.4/manual/cmake-properties.7.html#target-properties
 # https://stackoverflow.com/questions/tagged/cmake?sort=votes&pagesize=50
