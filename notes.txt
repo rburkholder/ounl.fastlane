@@ -1,0 +1,16 @@
+2019/08/17
+
+To build bpf tooling:
+
+apt install jq
+apt install binutils-dev
+apt install libreadline-dev
+wget and expand appropriate kernel in /usr/src
+cd linux-...
+pushd tools/perf
+make
+popd
+pushd tools/bpf
+make
+popd
+
