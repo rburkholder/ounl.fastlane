@@ -27,6 +27,7 @@ set(SRC_LINUX /usr/src/linux-4.19.39)
 
 set(
   file_h
+    log_syslog.h
     AppManager.h
     AppFastLane.h
     Server.h
@@ -38,8 +39,12 @@ set(
     ${SRC_LINUX}/samples/bpf/bpf_load.c
   )
 
+SET_SOURCE_FILES_PROPERTIES( ${file_c} PROPERTIES LANGUAGE C )
+  
 set(
   file_cpp
+    log_syslog_builtin.cpp
+    log_syslog_native.cpp
     asio_ssl.cpp
     AppManager.cpp
     AppFastLane.cpp
@@ -87,8 +92,6 @@ target_link_libraries(
   
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
 
-SET_SOURCE_FILES_PROPERTIES( ${file_c} PROPERTIES LANGUAGE C )
-  
 # https://cmake.org/cmake/help/v3.4/manual/cmake-properties.7.html#target-properties
 # https://stackoverflow.com/questions/tagged/cmake?sort=votes&pagesize=50
 # https://github.com/Kitware/CMake/blob/master/Modules/FindBoost.cmake

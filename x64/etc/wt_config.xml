@@ -207,7 +207,7 @@
 	   (e.g. for apache + fastcgi module), or on stderr (e.g. for
 	   the built-in httpd).
          -->
-	<log-file>run1.log</log-file>
+	<log-file></log-file>
 
 	<!-- Logger configuration
 

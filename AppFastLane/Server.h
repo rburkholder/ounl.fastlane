@@ -26,7 +26,7 @@
 // TODO: use pimpl at some point to hide structures and sub-systems
 
 namespace asio = boost::asio;
-namespace ip = boost::asio::ip;
+//namespace ip = boost::asio::ip;
 
 class Server: public Wt::WServer {
 public:
@@ -50,7 +50,7 @@ private:
 
   std::thread m_thread;
   asio::io_context m_io;
-  ip::tcp::resolver m_resolver;
+  //ip::tcp::resolver m_resolver;
   
 //  std::unique_ptr<CassandraClient> m_pcc;
 

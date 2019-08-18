@@ -36,8 +36,9 @@ static std::unique_ptr<Wt::WApplication> CreateAppFastLane( const Wt::WEnvironme
 AppManager::AppManager( int argc, char** argv )
 : m_server( argc, argv )
 {
-    m_server.setServerConfiguration( argc, argv, WTHTTP_CONFIGURATION );
-    m_server.addEntryPoint( Wt::EntryPointType::Application, CreateAppFastLane );
+  BOOST_LOG_TRIVIAL(trace) << "AppManager started";
+  m_server.setServerConfiguration( argc, argv, WTHTTP_CONFIGURATION );
+  m_server.addEntryPoint( Wt::EntryPointType::Application, CreateAppFastLane );
 }
 
 AppManager::~AppManager( ) { }
@@ -55,12 +56,12 @@ void AppManager::Start() {
 
   }
   catch (Wt::WServer::Exception& e) {
-    BOOST_LOG_TRIVIAL(trace) << "Wt exception:  " << e.what();
+    BOOST_LOG_TRIVIAL(trace) << "AppManager Wt exception:  " << e.what();
   }
   catch (std::exception &e) {
-    BOOST_LOG_TRIVIAL(trace) << "std exception: " << e.what();
+    BOOST_LOG_TRIVIAL(trace) << "AppManager std exception: " << e.what();
   }
 
-  BOOST_LOG_TRIVIAL(trace) << "done.";
+  BOOST_LOG_TRIVIAL(trace) << "AppManager done.";
 
 }

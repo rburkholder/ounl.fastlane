@@ -18,17 +18,17 @@ namespace po = boost::program_options;
 //#include <OunlMessage/Message.h>
 //#include <OunlMessage/buffer_on_strand.h>
 
-//#include <OunlMessage/log_syslog.h>
+#include "log_syslog.h"
 
 #include "Server.h"
 
 Server::Server(
-  int argc,
-  char *argv[],
-  const std::string &wtConfigurationFile
+   int argc
+  ,char *argv[]
+  ,const std::string &wtConfigurationFile
 )
-: Wt::WServer( argc, argv, wtConfigurationFile ),
-  m_resolver( m_io )
+: Wt::WServer( argc, argv, wtConfigurationFile )
+  //,m_resolver( m_io )
 {
 
   try {
@@ -67,13 +67,14 @@ Server::Server(
   //this->log( "info" ) << "constructor connects to: " << m_sBlgcSrvrIp << ":8794";
   this->log( "info" ) << "server started with: '" << wtConfigurationFile << "'";
 
-  //ounl::log::init_native_syslog();
+  ounl::log::init_native_syslog();
+
 
   m_thread = std::move( std::thread( [this]{ m_io.run(); }) );
 }
 
 Server::~Server() {
-  m_thread.join();
+  //m_thread.join();
 }
 /*
 void Server::ComposeSendAwaitReply( fCompose_t&& fCompose, fReply_t&& fReply) {
