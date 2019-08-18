@@ -28,6 +28,8 @@ Server::Server(
   ,const std::string &wtConfigurationFile
 )
 : Wt::WServer( argc, argv, wtConfigurationFile )
+  ,m_io_work( asio::make_work_guard( m_context ) )
+  ,m_bpfSockStats( m_context )
   //,m_resolver( m_io )
 {
 
@@ -69,12 +71,12 @@ Server::Server(
 
   ounl::log::init_native_syslog();
 
-
-  m_thread = std::move( std::thread( [this]{ m_io.run(); }) );
+  m_thread = std::move( std::thread( [this]{ m_context.run(); }) );
 }
 
 Server::~Server() {
-  //m_thread.join();
+  m_io_work.reset();
+  m_thread.join();
 }
 /*
 void Server::ComposeSendAwaitReply( fCompose_t&& fCompose, fReply_t&& fReply) {

@@ -15,9 +15,14 @@
 
 #include <thread>
 
-#include <boost/asio/ip/tcp.hpp>
+//#include <boost/asio/ip/tcp.hpp>
+//#include <boost/asio.hpp>
+#include <boost/asio/io_context.hpp>
+#include <boost/asio/executor_work_guard.hpp>
 
 #include <Wt/WServer.h>
+
+#include "bpf/user/Load.h"
 
 //#include "CassandraClient.h"
 
@@ -44,12 +49,15 @@ public:
 //  void ComposeSendAwaitReply( fCompose_t&&, fReply_t&&);
 //  void ComposeSendAwaitReply( const std::string& sSessionId, fCompose_t&&, fReply_t&&);
   
-
 protected:
 private:
 
   std::thread m_thread;
-  asio::io_context m_io;
+  asio::io_context m_context;
+  asio::executor_work_guard<asio::io_context::executor_type> m_io_work;
+
+  Load m_bpfSockStats;
+
   //ip::tcp::resolver m_resolver;
   
 //  std::unique_ptr<CassandraClient> m_pcc;
