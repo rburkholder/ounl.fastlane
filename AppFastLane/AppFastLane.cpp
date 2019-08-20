@@ -55,11 +55,11 @@ void AppFastLane::BuildInitialPage() {
   Wt::Chart::WCartesianChart* pChart = pContainer->addWidget( std::make_unique<Wt::Chart::WCartesianChart>() );
 
   pChart->setModel( m_pServer->Model() );
+  pChart->setType( Wt::Chart::ChartType::Scatter );
   pChart->setXSeriesColumn( 0 );
+  pChart->axis( Wt::Chart::Axis::X ).setScale( Wt::Chart::AxisScale::DateTime );
   pChart->setLegendEnabled(true);
   pChart->setBackground( Wt::WColor( 220, 220, 220 ) );
-  pChart->setType( Wt::Chart::ChartType::Scatter );
-  pChart->axis( Wt::Chart::Axis::X ).setScale( Wt::Chart::AxisScale::DateTime );
   pChart->setAutoLayoutEnabled();
   pChart->setPlotAreaPadding( 40, Wt::Side::Left | Wt::Side::Top | Wt::Side::Bottom );
   pChart->setPlotAreaPadding( 120, Wt::Side::Right );
@@ -69,11 +69,11 @@ void AppFastLane::BuildInitialPage() {
   std::unique_ptr<Wt::Chart::WDataSeries> pTcp = std::make_unique<Wt::Chart::WDataSeries>( 1, Wt::Chart::SeriesType::Point );
   pChart->addSeries( std::move( pTcp ) );
 
-  //std::unique_ptr<Wt::Chart::WDataSeries> pUdp = std::make_unique<Wt::Chart::WDataSeries>( 2, Wt::Chart::SeriesType::Line );
-  //pChart->addSeries( std::move( pUdp ) );
+  std::unique_ptr<Wt::Chart::WDataSeries> pUdp = std::make_unique<Wt::Chart::WDataSeries>( 2, Wt::Chart::SeriesType::Point );
+  pChart->addSeries( std::move( pUdp ) );
 
-  //std::unique_ptr<Wt::Chart::WDataSeries> pIcmp = std::make_unique<Wt::Chart::WDataSeries>( 3, Wt::Chart::SeriesType::Line );
-  //pChart->addSeries( std::move( pIcmp ) );
+  std::unique_ptr<Wt::Chart::WDataSeries> pIcmp = std::make_unique<Wt::Chart::WDataSeries>( 3, Wt::Chart::SeriesType::Point );
+  pChart->addSeries( std::move( pIcmp ) );
 
 
 }

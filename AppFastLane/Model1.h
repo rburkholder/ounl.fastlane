@@ -29,6 +29,9 @@ public:
   //bool setData (int row, int column, const Wt::cpp17::any &value, Wt::ItemDataRole role=Wt::ItemDataRole::Edit, const Wt::WModelIndex &parent=Wt::WModelIndex() );
   virtual bool setData(const Wt::WModelIndex &index, const Wt::cpp17::any &value, Wt::ItemDataRole role=Wt::ItemDataRole::Edit );
   virtual bool hasChildren(const Wt::WModelIndex &index) const;
+
+  virtual Wt::WAbstractItemModel::DataMap itemData(const Wt::WModelIndex &index) const;
+  virtual bool hasIndex(int row, int column, const Wt::WModelIndex &parent=Wt::WModelIndex()) const;
 protected:
 private:
 

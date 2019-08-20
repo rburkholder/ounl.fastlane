@@ -79,6 +79,7 @@ Server::Server(
   m_thread = std::move( std::thread( [this ]{ m_context.run(); }) );
 
   m_pModel = std::make_shared<Model1>();
+  //m_pModel = std::make_shared<Wt::WStandardItemModel>(0, 4);
   m_pModel->setHeaderData( 0, Wt::WString("Time") );
   m_pModel->setHeaderData( 1, Wt::WString("TCP") );
   m_pModel->setHeaderData( 2, Wt::WString("UDP") );
