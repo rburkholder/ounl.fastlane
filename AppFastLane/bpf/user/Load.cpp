@@ -26,11 +26,16 @@ extern "C" {
 
 #include "Load.h"
 
-Load::Load( asio::io_context& context )
+Load::Load( asio::io_context& context, fUpdateData_t&& fUpdateData )
 : m_context( context )
  ,m_bContinue( false ), m_bFinished( false )
  ,m_timer( m_context )
+ ,m_fUpdateData( std::move( fUpdateData ) )
 {
+
+  if ( nullptr == m_fUpdateData ) {
+    throw std::runtime_error( "m_fUpdateData is null" );
+  }
 
   static const std::string sFile( "bpf/sock_stats.o" );
   if ( 0 != load_bpf_file( (char*)sFile.c_str() ) ) {
@@ -86,5 +91,6 @@ void Load::UpdateStats( const boost::system::error_code& ) {
     Start();
   }
 
-  std::cout << "TCP: " << tcp_cnt << ", UDP: " << udp_cnt << ", ICMP: " << icmp_cnt <<std::endl;
+  m_fUpdateData( tcp_cnt, udp_cnt, icmp_cnt );
+  //std::cout << "TCP: " << tcp_cnt << ", UDP: " << udp_cnt << ", ICMP: " << icmp_cnt <<std::endl;
 }

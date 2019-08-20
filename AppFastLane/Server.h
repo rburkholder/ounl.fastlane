@@ -22,6 +22,9 @@
 
 #include <Wt/WServer.h>
 
+//#include <Wt/WStandardItemModel.h>
+
+#include "Model1.h"
 #include "bpf/user/Load.h"
 
 //#include "CassandraClient.h"
@@ -36,11 +39,16 @@ namespace asio = boost::asio;
 class Server: public Wt::WServer {
 public:
 
+  //using pModel_t = std::shared_ptr<Wt::WStandardItemModel>;
+  using pModel_t = std::shared_ptr<Model1>;
+
   Server( int argc,
           char *argv[], 
           const std::string &wtConfigurationFile=std::string()
           );
   virtual ~Server();
+
+  pModel_t Model() { return m_pModel; }
 
 //  using vByte_t = ounl::message::vByte_t;
 //  using fCompose_t = CassandraClient::fCompose_t;
@@ -53,10 +61,13 @@ protected:
 private:
 
   std::thread m_thread;
-  asio::io_context m_context;
+  asio::io_context m_context; // TODO:  convert to WServer::IOService
   asio::executor_work_guard<asio::io_context::executor_type> m_io_work;
 
-  Load m_bpfSockStats;
+  pModel_t m_pModel;
+  int m_nRows;
+
+  std::unique_ptr<Load> m_pBpfSockStats;
 
   //ip::tcp::resolver m_resolver;
   

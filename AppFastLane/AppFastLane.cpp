@@ -7,6 +7,8 @@
 
 #include <boost/log/trivial.hpp>
 
+#include <Wt/Chart/WCartesianChart.h>
+
 #include "AppFastLane.h"
 
 AppFastLane::AppFastLane( const Wt::WEnvironment& env )
@@ -26,6 +28,8 @@ void AppFastLane::initialize() {
 
   BOOST_LOG_TRIVIAL(info) << sessionId() << ",initialize()";
 
+  BuildInitialPage();
+
 }
 
 void AppFastLane::finalize() {
@@ -35,6 +39,7 @@ void AppFastLane::finalize() {
 }
 
 void AppFastLane::BuildInitialPage() {
+
   setCssTheme("polished");
   //useStyleSheet("resources/themes/bootstrap/3/less/normalize.less" ); // loaded automatically by bootstrap.css
   //useStyleSheet("resources/themes/bootstrap/3/less/navs.less" );
@@ -44,5 +49,31 @@ void AppFastLane::BuildInitialPage() {
   useStyleSheet("style/ounl.css");
 
   root()->clear();
+
+  Wt::WContainerWidget* pContainer = root()->addWidget( std::make_unique<Wt::WContainerWidget>() );
+
+  Wt::Chart::WCartesianChart* pChart = pContainer->addWidget( std::make_unique<Wt::Chart::WCartesianChart>() );
+
+  pChart->setModel( m_pServer->Model() );
+  pChart->setXSeriesColumn( 0 );
+  pChart->setLegendEnabled(true);
+  pChart->setBackground( Wt::WColor( 220, 220, 220 ) );
+  pChart->setType( Wt::Chart::ChartType::Scatter );
+  pChart->axis( Wt::Chart::Axis::X ).setScale( Wt::Chart::AxisScale::DateTime );
+  pChart->setAutoLayoutEnabled();
+  pChart->setPlotAreaPadding( 40, Wt::Side::Left | Wt::Side::Top | Wt::Side::Bottom );
+  pChart->setPlotAreaPadding( 120, Wt::Side::Right );
+  pChart->resize( 800, 400 );
+  pChart->setMargin( Wt::WLength::Auto, Wt::Side::Left | Wt::Side::Right );
+
+  std::unique_ptr<Wt::Chart::WDataSeries> pTcp = std::make_unique<Wt::Chart::WDataSeries>( 1, Wt::Chart::SeriesType::Point );
+  pChart->addSeries( std::move( pTcp ) );
+
+  //std::unique_ptr<Wt::Chart::WDataSeries> pUdp = std::make_unique<Wt::Chart::WDataSeries>( 2, Wt::Chart::SeriesType::Line );
+  //pChart->addSeries( std::move( pUdp ) );
+
+  //std::unique_ptr<Wt::Chart::WDataSeries> pIcmp = std::make_unique<Wt::Chart::WDataSeries>( 3, Wt::Chart::SeriesType::Line );
+  //pChart->addSeries( std::move( pIcmp ) );
+
 
 }

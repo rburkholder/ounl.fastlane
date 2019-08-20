@@ -32,6 +32,7 @@ set(
     AppFastLane.h
     Server.h
     bpf/user/Load.h
+    Model1.h
   )
   
 set(
@@ -51,6 +52,7 @@ set(
     Server.cpp
     main.cpp
     bpf/user/Load.cpp
+    Model1.cpp
   )
   
 add_executable( 

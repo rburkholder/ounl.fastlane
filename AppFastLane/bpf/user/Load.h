@@ -10,6 +10,8 @@
 #ifndef APPFASTLANE_BPF_USER_LOAD_H_
 #define APPFASTLANE_BPF_USER_LOAD_H_
 
+#include <functional>
+
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
 
@@ -17,7 +19,10 @@ namespace asio = boost::asio;
 
 class Load {
 public:
-  Load( asio::io_context& );
+
+  using fUpdateData_t = std::function<void(long long, long long, long long)>;
+
+  Load( asio::io_context&, fUpdateData_t&& );
   ~Load();
 protected:
 private:
@@ -25,6 +30,8 @@ private:
   bool m_bFinished;
   asio::io_context& m_context;
   asio::steady_timer m_timer;
+
+  fUpdateData_t m_fUpdateData;
 
   void Start();
   void UpdateStats( const boost::system::error_code& );
