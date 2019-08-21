@@ -15,11 +15,11 @@ Model1::Model1()
 {
   Wt::WAbstractItemModel::rowsAboutToBeInserted().connect(
     []( Wt::WModelIndex, int rowFirst, int rowLast ){
-      std::cout << "rowsAboutToBeInserted: " << rowFirst << "," << rowLast << std::endl;
+      //std::cout << "rowsAboutToBeInserted: " << rowFirst << "," << rowLast << std::endl;
     } );
   Wt::WAbstractItemModel::rowsInserted ().connect(
     []( Wt::WModelIndex, int rowFirst, int rowLast ){
-      std::cout << "rowsInserted: " << rowFirst << "," << rowLast << std::endl;
+      //std::cout << "rowsInserted: " << rowFirst << "," << rowLast << std::endl;
     } );
 }
 
@@ -78,6 +78,17 @@ Wt::WModelIndex Model1::index(int row, int column, const Wt::WModelIndex &parent
 std::any Model1::headerData(int section, Wt::Orientation orientation, Wt::ItemDataRole role ) const {
   switch ( role.value() ) {
     case Wt::ItemDataRole::Display:
+      switch ( section ) {
+        case 1:
+          return std::any( "tcp" );
+          break;
+        case 2:
+          return std::any( "udp" );
+          break;
+        case 3:
+          return std::any( "icmp" );
+          break;
+      }
       break;
     default:
       std::cout
