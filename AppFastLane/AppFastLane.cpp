@@ -57,10 +57,10 @@ void AppFastLane::BuildInitialPage() {
 
   m_pModel = std::make_shared<Model1>();
   //m_pModel = std::make_shared<Wt::WStandardItemModel>(0, 4);
-  m_pModel->setHeaderData( 0, Wt::WString("Time") );
-  m_pModel->setHeaderData( 1, Wt::WString("TCP") );
-  m_pModel->setHeaderData( 2, Wt::WString("UDP") );
-  m_pModel->setHeaderData( 3, Wt::WString("ICMP") );
+  m_pModel->setHeaderData( 0, Wt::Orientation::Horizontal, Wt::WString("Time"), Wt::ItemDataRole::Display );
+  m_pModel->setHeaderData( 1, Wt::Orientation::Horizontal, Wt::WString("TCP"), Wt::ItemDataRole::Display );
+  m_pModel->setHeaderData( 2, Wt::Orientation::Horizontal, Wt::WString("UDP"), Wt::ItemDataRole::Display );
+  m_pModel->setHeaderData( 3, Wt::Orientation::Horizontal, Wt::WString("ICMP"), Wt::ItemDataRole::Display );
 
   m_pServer->m_signalStats.connect( this, &AppFastLane::UpdateModel );
 

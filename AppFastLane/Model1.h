@@ -23,6 +23,7 @@ public:
   virtual std::any data(const Wt::WModelIndex &index, Wt::ItemDataRole role=Wt::ItemDataRole::Display ) const;
   virtual Wt::WModelIndex index(int row, int column, const Wt::WModelIndex &parent=Wt::WModelIndex()) const;
   virtual std::any headerData(int section, Wt::Orientation orientation=Wt::Orientation::Horizontal, Wt::ItemDataRole role=Wt::ItemDataRole::Display) const;
+  virtual bool setHeaderData( int section, Wt::Orientation orientation, const Wt::cpp17::any &value, Wt::ItemDataRole role=Wt::ItemDataRole::Edit);
   virtual Wt::WFlags< Wt::ItemFlag > flags(const Wt::WModelIndex &index) const;
 
   virtual bool insertRows(int row, int count, const Wt::WModelIndex &parent=Wt::WModelIndex() );
@@ -39,6 +40,7 @@ private:
     std::any any[ 4 ];
   };
   std::vector<Data> m_vData;
+  std::any m_dataHeader[ 4 ];
 };
 
 #endif /* APPFASTLANE_MODEL1_H_ */

@@ -75,19 +75,20 @@ Wt::WModelIndex Model1::index(int row, int column, const Wt::WModelIndex &parent
   return createIndex( row, column, nullptr );
 }
 
+bool Model1::setHeaderData( int section, Wt::Orientation orientation, const Wt::cpp17::any &value, Wt::ItemDataRole role ) {
+  bool bOk( false );
+  if ( ( 0 <= section ) && section <= 3 ) {
+    m_dataHeader[ section ] = value;
+    bOk = true;
+  }
+  return bOk;
+}
+
 std::any Model1::headerData(int section, Wt::Orientation orientation, Wt::ItemDataRole role ) const {
   switch ( role.value() ) {
     case Wt::ItemDataRole::Display:
-      switch ( section ) {
-        case 1:
-          return std::any( "tcp" );
-          break;
-        case 2:
-          return std::any( "udp" );
-          break;
-        case 3:
-          return std::any( "icmp" );
-          break;
+      if ( ( 0 <= section ) && ( section <= 3 ) ) {
+        return m_dataHeader[ section ];
       }
       break;
     default:
