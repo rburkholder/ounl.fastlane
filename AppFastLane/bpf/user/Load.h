@@ -26,8 +26,15 @@ public:
   ~Load();
 protected:
 private:
+
   bool m_bContinue;
   bool m_bFinished;
+  bool m_bFirst;
+
+  long long m_llTcp;
+  long long m_llUdp;
+  long long m_llIcmp;
+
   asio::io_context& m_context;
   asio::steady_timer m_timer;
 

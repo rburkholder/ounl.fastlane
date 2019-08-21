@@ -28,9 +28,10 @@ extern "C" {
 
 Load::Load( asio::io_context& context, fUpdateData_t&& fUpdateData )
 : m_context( context )
- ,m_bContinue( false ), m_bFinished( false )
+ ,m_bContinue( false ), m_bFinished( false ), m_bFirst( true )
  ,m_timer( m_context )
  ,m_fUpdateData( std::move( fUpdateData ) )
+ ,m_llTcp {}, m_llUdp {}, m_llIcmp {}
 {
 
   if ( nullptr == m_fUpdateData ) {
@@ -91,6 +92,23 @@ void Load::UpdateStats( const boost::system::error_code& ) {
     Start();
   }
 
-  m_fUpdateData( tcp_cnt, udp_cnt, icmp_cnt );
+  if ( m_bFirst ) {
+    m_llTcp = tcp_cnt;
+    m_llUdp = udp_cnt;
+    m_llIcmp = icmp_cnt;
+    m_bFirst = false;
+  }
+  else {
+    long long diffTcp = tcp_cnt - m_llTcp;
+    m_llTcp = tcp_cnt;
+    long long diffUdp = udp_cnt - m_llUdp;
+    m_llUdp = udp_cnt;
+    long long diffIcmp = icmp_cnt - m_llIcmp;
+    m_llIcmp = icmp_cnt;
+
+    m_fUpdateData( diffTcp, diffUdp, diffIcmp );
+  }
+
+
   //std::cout << "TCP: " << tcp_cnt << ", UDP: " << udp_cnt << ", ICMP: " << icmp_cnt <<std::endl;
 }
