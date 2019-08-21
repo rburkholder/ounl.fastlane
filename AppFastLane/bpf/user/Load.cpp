@@ -31,7 +31,6 @@ Load::Load( asio::io_context& context, fUpdateData_t&& fUpdateData )
  ,m_bContinue( false ), m_bFinished( false )
  ,m_timer( m_context )
  ,m_fUpdateData( std::move( fUpdateData ) )
-// ,cnt {}
 {
 
   if ( nullptr == m_fUpdateData ) {
@@ -88,8 +87,6 @@ void Load::UpdateStats( const boost::system::error_code& ) {
 
   m_bFinished = true;
 
-  //cnt++;
-  //if ( ( 2 >= cnt ) && m_bContinue ) {
   if ( m_bContinue ) {
     Start();
   }

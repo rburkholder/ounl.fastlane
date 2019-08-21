@@ -31,8 +31,6 @@ private:
   asio::io_context& m_context;
   asio::steady_timer m_timer;
 
-  //int cnt;
-
   fUpdateData_t m_fUpdateData;
 
   void Start();
