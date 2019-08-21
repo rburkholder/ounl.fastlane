@@ -29,6 +29,8 @@ void AppFastLane::initialize() {
 
   BOOST_LOG_TRIVIAL(info) << sessionId() << ",initialize()";
 
+  enableUpdates( true );
+
   BuildInitialPage();
 
 }
@@ -76,15 +78,14 @@ void AppFastLane::BuildInitialPage() {
   pChart->resize( 800, 400 );
   pChart->setMargin( Wt::WLength::Auto, Wt::Side::Left | Wt::Side::Right );
 
-  std::unique_ptr<Wt::Chart::WDataSeries> pTcp = std::make_unique<Wt::Chart::WDataSeries>( 1, Wt::Chart::SeriesType::Point );
+  std::unique_ptr<Wt::Chart::WDataSeries> pTcp = std::make_unique<Wt::Chart::WDataSeries>( 1, Wt::Chart::SeriesType::Line );
   pChart->addSeries( std::move( pTcp ) );
 
-  std::unique_ptr<Wt::Chart::WDataSeries> pUdp = std::make_unique<Wt::Chart::WDataSeries>( 2, Wt::Chart::SeriesType::Point );
+  std::unique_ptr<Wt::Chart::WDataSeries> pUdp = std::make_unique<Wt::Chart::WDataSeries>( 2, Wt::Chart::SeriesType::Line );
   pChart->addSeries( std::move( pUdp ) );
 
-  std::unique_ptr<Wt::Chart::WDataSeries> pIcmp = std::make_unique<Wt::Chart::WDataSeries>( 3, Wt::Chart::SeriesType::Point );
+  std::unique_ptr<Wt::Chart::WDataSeries> pIcmp = std::make_unique<Wt::Chart::WDataSeries>( 3, Wt::Chart::SeriesType::Line );
   pChart->addSeries( std::move( pIcmp ) );
-
 
 }
 
@@ -99,5 +100,6 @@ void AppFastLane::UpdateModel( Wt::WDateTime dt, long long tcp, long long udp, l
       m_pModel->setData( m_pModel->index( m_nRows, 2 ), std::any( udp ) );
       m_pModel->setData( m_pModel->index( m_nRows, 3 ), std::any( icmp ) );
       m_nRows++;
+      triggerUpdate();
     });
 }
