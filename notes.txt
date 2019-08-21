@@ -1,3 +1,6 @@
+2019/08/18
+# ../build/cmake.debug.linux.x86_64/AppFastLane/AppFastLane "--docroot=web;/favicon.ico,/resources,/style,/image,/static" --http-address=0.0.0.0 --http-port=8085 --config=etc/wt_config.xml
+
 2019/08/17
 
 To build bpf tooling:
