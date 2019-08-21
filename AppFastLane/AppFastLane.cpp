@@ -12,13 +12,14 @@
 #include "AppFastLane.h"
 
 AppFastLane::AppFastLane( const Wt::WEnvironment& env )
-: Wt::WApplication( env ),
-  m_environment( env ),
-  m_pServer( dynamic_cast<Server*>( env.server() ) ),
-  m_menuPersonal( nullptr ),
-  m_cwContent( nullptr ),
-  m_cwFooter( nullptr ),
-  m_cwStatus( nullptr )
+: Wt::WApplication( env )
+  ,m_environment( env )
+  ,m_pServer( dynamic_cast<Server*>( env.server() ) )
+  ,m_menuPersonal( nullptr )
+  ,m_cwContent( nullptr )
+  ,m_cwFooter( nullptr )
+  ,m_cwStatus( nullptr )
+  ,m_nRows {}
 {
 }
 
@@ -52,9 +53,18 @@ void AppFastLane::BuildInitialPage() {
 
   Wt::WContainerWidget* pContainer = root()->addWidget( std::make_unique<Wt::WContainerWidget>() );
 
+  m_pModel = std::make_shared<Model1>();
+  //m_pModel = std::make_shared<Wt::WStandardItemModel>(0, 4);
+  m_pModel->setHeaderData( 0, Wt::WString("Time") );
+  m_pModel->setHeaderData( 1, Wt::WString("TCP") );
+  m_pModel->setHeaderData( 2, Wt::WString("UDP") );
+  m_pModel->setHeaderData( 3, Wt::WString("ICMP") );
+
+  m_pServer->m_signalStats.connect( this, &AppFastLane::UpdateModel );
+
   Wt::Chart::WCartesianChart* pChart = pContainer->addWidget( std::make_unique<Wt::Chart::WCartesianChart>() );
 
-  pChart->setModel( m_pServer->Model() );
+  pChart->setModel( m_pModel );
   pChart->setType( Wt::Chart::ChartType::Scatter );
   pChart->setXSeriesColumn( 0 );
   pChart->axis( Wt::Chart::Axis::X ).setScale( Wt::Chart::AxisScale::DateTime );
@@ -76,4 +86,18 @@ void AppFastLane::BuildInitialPage() {
   pChart->addSeries( std::move( pIcmp ) );
 
 
+}
+
+void AppFastLane::UpdateModel( Wt::WDateTime dt, long long tcp, long long udp, long long icmp ) {
+  m_pServer->post(
+    sessionId(),
+    [this,dt, tcp, udp, icmp](){
+      m_pModel->insertRow( m_nRows );
+
+      m_pModel->setData( m_pModel->index( m_nRows, 0 ), std::any( dt ) );
+      m_pModel->setData( m_pModel->index( m_nRows, 1 ), std::any( tcp ) );
+      m_pModel->setData( m_pModel->index( m_nRows, 2 ), std::any( udp ) );
+      m_pModel->setData( m_pModel->index( m_nRows, 3 ), std::any( icmp ) );
+      m_nRows++;
+    });
 }

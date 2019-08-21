@@ -34,7 +34,6 @@ Server::Server(
 )
 : Wt::WServer( argc, argv, wtConfigurationFile )
   ,m_io_work( asio::make_work_guard( m_context ) )
-  ,m_nRows {}
   //,m_resolver( m_io )
 {
 
@@ -78,59 +77,15 @@ Server::Server(
 
   m_thread = std::move( std::thread( [this ]{ m_context.run(); }) );
 
-  m_pModel = std::make_shared<Model1>();
-  //m_pModel = std::make_shared<Wt::WStandardItemModel>(0, 4);
-  m_pModel->setHeaderData( 0, Wt::WString("Time") );
-  m_pModel->setHeaderData( 1, Wt::WString("TCP") );
-  m_pModel->setHeaderData( 2, Wt::WString("UDP") );
-  m_pModel->setHeaderData( 3, Wt::WString("ICMP") );
-
   m_pBpfSockStats = std::make_unique<Load>(
     m_context,
     [this](long long tcp, long long udp, long long icmp ){
 
-      m_pModel->insertRow( m_nRows );
       Wt::WDateTime dt = Wt::WDateTime::currentDateTime();
-      m_pModel->setData( m_pModel->index( m_nRows, 0 ), std::any( dt ) );
-      m_pModel->setData( m_pModel->index( m_nRows, 1 ), std::any( tcp ) );
-      m_pModel->setData( m_pModel->index( m_nRows, 2 ), std::any( udp ) );
-      m_pModel->setData( m_pModel->index( m_nRows, 3 ), std::any( icmp ) );
+      m_signalStats.emit( dt, tcp, udp, icmp );
 
-
-    /*
-      using pItem_t = std::unique_ptr<Wt::WStandardItem>;
-      std::vector<pItem_t> vItem;
-
-      pItem_t pCol0 = std::make_unique<Wt::WStandardItem>( 1, 1 );
-      pCol0->setData( Wt::WDateTime::currentDateTime() );
-      vItem.push_back( std::move( pCol0 ) );
-
-      pItem_t pCol1 = std::make_unique<Wt::WStandardItem>( 1, 1 );
-      pCol1->setData( tcp );
-      vItem.push_back( std::move( pCol1 ) );
-
-      pItem_t pCol2 = std::make_unique<Wt::WStandardItem>( 1, 1 );
-      pCol2->setData( udp );
-      vItem.push_back( std::move( pCol2 ) );
-
-      pItem_t pCol3 = std::make_unique<Wt::WStandardItem>( 1, 1 );
-      pCol3->setData( icmp );
-      vItem.push_back( std::move( pCol3 ) );
-
-      pItem_t pRow = std::make_unique<Wt::WStandardItem>( 1, 4 );
-      pRow->appendColumn( std::move( vItem ) );
-      */
-
-      //m_pModel->appendRow( std::move( pRow ) );
-
-      //m_pModel->setData( m_nRows, 0, Wt::WDateTime::currentDateTime() );
-      //m_pModel->setData( m_nRows, 1, tcp );
-      //m_pModel->setData( m_nRows, 2, udp );
-      //m_pModel->setData( m_nRows, 3, icmp );
-      m_nRows++;
     }
     );
-
 }
 
 Server::~Server() {
