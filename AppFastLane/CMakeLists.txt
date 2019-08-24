@@ -70,8 +70,21 @@ target_include_directories(
   ${PROJECT_NAME} PUBLIC 
     ".."
     ${SRC_LINUX}
+    ${SRC_LINUX}/include/uapi
+#    ${SRC_LINUX}/include
+    # asm/linkage.h
+    ${SRC_LINUX}/arch/x86/include/uapi
+    # unistd_64_x32.h
+#    ${SRC_LINUX}/arch/x86/include/generated
+    # asm-generic/percpu.h
+    
+#    /usr/src/linux-headers-4.19.0-5-common/arch/x86/include
+#    /usr/src/linux-headers-4.19.0-5-common/include/uapi
+#    /usr/src/linux-headers-4.19.0-5-common/arch/x86/include
 #    ${SRC_LINUX}/tools/lib/bpf
 #    ${SRC_LINUX}/tools/lib
+
+#   asm-generic/barrier.h    
 #    ${SRC_LINUX}/tools/include
 #    ${SRC_LINUX}/tools/perf
   )

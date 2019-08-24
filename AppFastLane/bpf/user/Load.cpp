@@ -7,6 +7,16 @@
  * Created:   Aug. 16, 2019
  */
 
+#include <iostream>
+#include <sstream>
+#include <assert.h>
+#include <stdexcept>
+#include <string>
+#include <chrono>
+//#include <functional>
+
+#include "Load.h"
+
 extern "C" {
 #include <linux/bpf.h>
 #include <bpf/bpf.h>
@@ -15,16 +25,6 @@ extern "C" {
 #include <samples/bpf/sock_example.h>
 #include <samples/bpf/bpf_load.h>
 }
-
-//#include <stdio.h>
-#include <iostream>
-#include <assert.h>
-#include <stdexcept>
-#include <string>
-#include <chrono>
-#include <functional>
-
-#include "Load.h"
 
 Load::Load( asio::io_context& context, fUpdateData_t&& fUpdateData )
 : m_context( context )
