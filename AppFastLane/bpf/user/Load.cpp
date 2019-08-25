@@ -13,7 +13,6 @@
 #include <stdexcept>
 #include <string>
 #include <chrono>
-//#include <functional>
 
 #include "Load.h"
 
