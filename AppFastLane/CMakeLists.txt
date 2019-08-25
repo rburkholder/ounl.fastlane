@@ -37,14 +37,14 @@ set(
     bpf/user/Load.h
     netlink/interface.h
   )
-  
+
 set(
   file_c
     ${SRC_LINUX}/samples/bpf/bpf_load.c
   )
 
 SET_SOURCE_FILES_PROPERTIES( ${file_c} PROPERTIES LANGUAGE C )
-  
+
 set(
   file_cpp
     log_syslog_builtin.cpp
@@ -58,14 +58,14 @@ set(
     bpf/user/Load.cpp
     netlink/interface.cpp
   )
-  
+
 add_executable( 
   ${PROJECT_NAME}
     ${file_h}
     ${file_cpp}
     ${file_c}
   )
-  
+
 target_compile_definitions(${PROJECT_NAME} PUBLIC BOOST_LOG_DYN_LINK BOOST_ASIO_SEPARATE_COMPILATION )
 
 target_include_directories(
@@ -79,7 +79,10 @@ target_include_directories(
     # unistd_64_x32.h
 #    ${SRC_LINUX}/arch/x86/include/generated
     # asm-generic/percpu.h
-    
+
+    // lastest netlink instead of apt installed headers
+    /usr/local/include/libnl3
+
 #    /usr/src/linux-headers-4.19.0-5-common/arch/x86/include
 #    /usr/src/linux-headers-4.19.0-5-common/include/uapi
 #    /usr/src/linux-headers-4.19.0-5-common/arch/x86/include
@@ -96,7 +99,7 @@ target_link_directories(
     /usr/local/lib
     ${SRC_LINUX}/tools/lib/bpf
   )
-  
+
 target_link_libraries(
   ${PROJECT_NAME}
     wt
@@ -110,7 +113,7 @@ target_link_libraries(
     nl-3
     nl-route-3
   )  
-  
+
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
 
 # https://cmake.org/cmake/help/v3.4/manual/cmake-properties.7.html#target-properties
