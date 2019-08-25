@@ -108,6 +108,7 @@ target_link_libraries(
     bpf
     elf
     nl-3
+    nl-route-3
   )  
   
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)

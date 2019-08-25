@@ -29,7 +29,8 @@ private:
   using fNetlinkCallBack_t = std::function<int(struct nl*, void*)>;
 
   static fNetlinkCallBack_t m_fNetlinkCallBack;
-  static int cbCmd(struct nl_msg *msg, void *arg);
+  static int cbCmd_Msg_Valid(struct nl_msg *msg, void *arg);
+  static int cbCmd_Msg_Finished(struct nl_msg *msg, void *arg);
   static int cbLinkEvent(struct nl_msg *msg, void *arg);
 
   //struct nl_cache_mngr* m_cache_mngr_link;
