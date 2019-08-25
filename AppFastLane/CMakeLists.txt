@@ -33,8 +33,9 @@ set(
     AppManager.h
     AppFastLane.h
     Server.h
-    bpf/user/Load.h
     Model1.h
+    bpf/user/Load.h
+    netlink/interface.h
   )
   
 set(
@@ -53,8 +54,9 @@ set(
     AppFastLane.cpp
     Server.cpp
     main.cpp
-    bpf/user/Load.cpp
     Model1.cpp
+    bpf/user/Load.cpp
+    netlink/interface.cpp
   )
   
 add_executable( 
@@ -105,6 +107,7 @@ target_link_libraries(
     ssl
     bpf
     elf
+    nl-3
   )  
   
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)

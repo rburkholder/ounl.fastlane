@@ -24,6 +24,7 @@
 #include <Wt/WSignal.h>
 
 #include "bpf/user/Load.h"
+#include "netlink/interface.h"
 
 //#include "CassandraClient.h"
 
@@ -60,6 +61,8 @@ private:
   asio::executor_work_guard<asio::io_context::executor_type> m_io_work;
 
   std::unique_ptr<Load> m_pBpfSockStats;
+
+  interface m_interface;
 
   //ip::tcp::resolver m_resolver;
   

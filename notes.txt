@@ -1,5 +1,15 @@
 2019/08/18
 # ../build/cmake.debug.linux.x86_64/AppFastLane/AppFastLane "--docroot=web;/favicon.ico,/resources,/style,/image,/static" --http-address=0.0.0.0 --http-port=8085 --config=etc/wt_config.xml
+# NLCB=debug NLDBG=2 ../build/cmake.debug.linux.x86_64/AppFastLane/AppFastLane "--docroot=web;/favicon.ico,/resources,/style,/image,/static" --http-address=0.0.0.0 --http-port=8085 --config=etc/wt_config.xml
+
+NLDBG
+0 Debugging disabled (default)
+1 Warnings, important events and notifications
+2 More or less important debugging messages
+3 Repetitive events causing a flood of debugging messages
+4 Even less important messages
+
+
 
 2019/08/17
 
