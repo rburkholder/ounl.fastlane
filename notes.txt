@@ -1,3 +1,52 @@
+2019/08/25
+
+caches and operations available:
+
+NLDBG=1 ../build/cmake.debug.linux.x86_64/AppFastLane/AppFastLane "--docroot=web;/favicon.ico,/resources,/style,/image,/static" --http-address=0.0.0.0 --http-port=8085 --config=etc/wt_config.xml
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations fib_lookup/fib_lookup
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/act
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/addr
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/class
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/cls
+DBG<1>lib/route/cls/ematch.c:51   rtnl_ematch_register: ematch module "cmp" registered
+DBG<1>lib/route/cls/ematch.c:51   rtnl_ematch_register: ematch module "container" registered
+DBG<1>lib/route/cls/ematch.c:51   rtnl_ematch_register: ematch module "meta" registered
+DBG<1>lib/route/cls/ematch.c:51   rtnl_ematch_register: ematch module "nbyte" registered
+DBG<1>lib/route/cls/ematch.c:51   rtnl_ematch_register: ematch module "text" registered
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/link
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations bond
+DBG<1>lib/route/link/api.c:302  rtnl_link_af_register: Registered link address family operations 7
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations can
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations dummy
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations geneve
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations ifb
+DBG<1>lib/route/link/api.c:302  rtnl_link_af_register: Registered link address family operations 2
+DBG<1>lib/route/link/api.c:302  rtnl_link_af_register: Registered link address family operations 10
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations ip6tnl
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations gre
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations gretap
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations ipip
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations ipvlan
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations vti
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations macsec
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations macvlan
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations macvtap
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations ppp
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations sit
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations veth
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations vlan
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations vrf
+DBG<1>lib/route/link/api.c:124  rtnl_link_register_info: Registered link info operations vxlan
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/neigh
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/neightbl
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/netconf
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/qdisc
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/route
+DBG<1>    lib/cache_mngt.c:272  nl_cache_mngt_register: Registered cache operations route/rule
+[2019-Aug-25 12:33:24.407] 7445 - [info] "config: reading Wt config file: etc/wt_config.xml (location = '../build/cmake.debug.linux.x86_64/AppFastLane/AppFastLane')"
+DBG<1>    lib/cache_mngr.c:192  nl_cache_mngr_alloc: Allocated cache manager 0x55ed9f05ec50, protocol 0, 16 caches
+DBG<1>    lib/cache_mngr.c:355  nl_cache_mngr_add_cache: Added cache 0x55ed9f060150 <route/link> to cache manager 0x55ed9f05ec50
+
 2019/08/18
 # ../build/cmake.debug.linux.x86_64/AppFastLane/AppFastLane "--docroot=web;/favicon.ico,/resources,/style,/image,/static" --http-address=0.0.0.0 --http-port=8085 --config=etc/wt_config.xml
 # NLCB=debug NLDBG=2 ../build/cmake.debug.linux.x86_64/AppFastLane/AppFastLane "--docroot=web;/favicon.ico,/resources,/style,/image,/static" --http-address=0.0.0.0 --http-port=8085 --config=etc/wt_config.xml
