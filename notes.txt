@@ -1,4 +1,16 @@
 2019/08/25
+https://lore.kernel.org/patchwork/patch/876813/
+nlmsghdr->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
+nlmsghdr->nlmsg_type = RTM_NEWLINK;
+/* move to network namespace of pid */
+nla_put_u32(nlmsg, IFLA_NET_NS_PID, pid)
+/* give interface new name */
+nla_put_string(nlmsg, IFLA_IFNAME, ifname)
+
+https://stackoverflow.com/questions/27008067/how-to-get-notified-about-network-interface-changes-with-netlist-and-rtmgrp-link
+
+
+2019/08/25
 
 caches and operations available:
 
