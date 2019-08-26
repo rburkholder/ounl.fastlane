@@ -46,6 +46,7 @@ private:
 
   bool m_bPoll;
   std::thread m_threadPoll;
+  size_t m_cntLoops;
 };
 
 #endif /* APPFASTLANE_NETLINK_INTERFACE_H_ */

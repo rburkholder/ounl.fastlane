@@ -190,7 +190,19 @@ void interface::cbCacheLinkEvent1(
     void* data
 ) {
   interface* self = reinterpret_cast<interface*>( data );
+
+  const char *szType;
+
   std::cout << "interface::cbCacheLinkEvent1 action: ";
+
+  szType = nl_object_get_type(obj);
+  std::cout <<",new type='" << szType << "'";
+  struct rtnl_link* link = (struct rtnl_link*)obj;
+  int ifindex = rtnl_link_get_ifindex( link );
+  std::cout << ",index=" << ifindex;
+
+  std::cout << std::endl;
+
 }
 
 void interface::cbCacheLinkEvent2(
@@ -253,31 +265,43 @@ interface::interface()
   // ====  cache manager for link information
 
   if ( false ) {
-    //m_nl_sock_cache_link = nl_socket_alloc();
-    //if ( nullptr == m_nl_sock_cache_link ) {
-    //  throw std::runtime_error( "no netlink socket - m_nl_sock_cache_link" );
-    //}
+    // doesn't generate callbacks when statistics are requested
 
+    m_nl_sock_cache_link = nl_socket_alloc();
+    if ( nullptr == m_nl_sock_cache_link ) {
+      throw std::runtime_error( "no netlink socket - m_nl_sock_cache_link" );
+    }
+
+    // is over-written or ignored:
+    //status = nl_socket_modify_cb(m_nl_sock_cache_link, NL_CB_VALID, NL_CB_CUSTOM, &interface::cbCmd_Msg_Valid, this);
+
+    // generates socket error:
     //status = nl_connect(m_nl_sock_cache_link, NETLINK_ROUTE);
 
-    status = nl_cache_mngr_alloc(nullptr, NETLINK_ROUTE, NL_AUTO_PROVIDE, &m_cache_link_mngr);
-    //status = nl_cache_mngr_alloc(m_nl_sock_cache_link, NETLINK_ROUTE, NL_AUTO_PROVIDE, &m_cache_link_mngr);
+    //status = nl_cache_mngr_alloc(nullptr, NETLINK_ROUTE, NL_AUTO_PROVIDE, &m_cache_link_mngr);
+    status = nl_cache_mngr_alloc(m_nl_sock_cache_link, NETLINK_ROUTE, NL_AUTO_PROVIDE, &m_cache_link_mngr);
     if ( 0 > status ) {
+      std::cout << "nl_cache_mngr_alloc error " << status << std::endl;
+      // TODO: need to free the socket
       throw std::runtime_error( "nl_cache_mngr_alloc failed" );
     }
 
     //status = rtnl_link_alloc_cache( m_nl_sock_cache_link, AF_UNSPEC, &m_cache_link );
     //if ( 0 > status ) {
+    //  std::cout << "rtnl_link_alloc_cache error " << status << std::endl;
     //  throw std::runtime_error( "cache issue - m_nl_sock_cache_link" );
     //}
 
-    //status = nl_cache_mngr_add_cache_v2( m_cache_link_mngr, m_cache_link, &interface::cbCacheLinkEvent, this );
-    //if ( 0 < status ) {
-    //  throw std::runtime_error( "nl_cache_mngr_add_cache_v2 failed" );
-    //}
+    status = nl_cache_mngr_add_cache_v2( m_cache_link_mngr, m_cache_link, &interface::cbCacheLinkEvent2, this );
+    if ( 0 > status ) {
+      std::cout << "nl_cache_mngr_add_cache_v2 error " << status << std::endl;
+      // TODO: need to free socket and cache
+      throw std::runtime_error( "nl_cache_mngr_add_cache_v2 failed" );
+    }
 
     status = nl_cache_mngr_add(m_cache_link_mngr, "route/link", &interface::cbCacheLinkEvent1, this, &m_cache_link);
     if ( 0 > status ) {
+      std::cout << "nl_cache_mngr_add error " << status << std::endl;
       throw std::runtime_error( "nl_cache_mngr_add failed" );
     }
 
@@ -393,11 +417,20 @@ interface::interface()
   m_bPoll = true;
   m_threadPoll = std::move( std::thread(
     [this](){
+      struct rtgenmsg rt_hdr = {
+        .rtgen_family = AF_UNSPEC,
+      };
+      m_cntLoops = 10;
       while ( m_bPoll ) {
         //int status = nl_cache_mngr_poll(m_cache_link_mngr, 500); //  ms
         //if ( 0 == status ) std::cout << "nl_cache_mngr_poll polling" << std::endl;
         //if ( 0 < status ) std::cout << "nl_cache_mngr_poll msgs=" << status << std::endl;
         //if ( 0 > status ) std::cout << "nl_cache_mngr_poll error=" << status << std::endl;
+        //m_cntLoops--;
+        //if ( 0 == m_cntLoops ) {
+        //  status = nl_send_simple(m_nl_sock_cache_link, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
+        //  m_cntLoops = 10;
+        //}
       }
     } ) );
 }
@@ -407,18 +440,18 @@ interface::~interface() {
   m_bPoll = false;
   m_threadPoll.join();
 
-  nl_cache_mngr_free( m_cache_link_mngr );
-  nl_cache_free( m_cache_link );
+  //nl_cache_mngr_free( m_cache_link_mngr );
+  //nl_cache_free( m_cache_link );
 
   //int nl_socket_drop_memberships(struct nl_sock *sk, int group, ...);
 
   //nl_close( m_nl_sock_event );
   //nl_close( m_nl_sock_cmd );
   //nl_close( m_nl_sock_cache_link );
-  nl_close( m_nl_sock_statistics );
+  //nl_close( m_nl_sock_statistics );
 
   //nl_socket_free( m_nl_sock_event );
   //nl_socket_free( m_nl_sock_cmd );
   //nl_socket_free( m_nl_sock_cache_link );
-  nl_socket_free( m_nl_sock_statistics );
+  //nl_socket_free( m_nl_sock_statistics );
 }
