@@ -84,7 +84,7 @@ int interface::cbCmd_Msg_Valid(struct nl_msg *msg, void *arg) {
     char proto[ 64 ];
     nl_llproto2str( hdr_rt->ifi_type, proto, 64 );
 
-    char flags[ 64 ];
+    char flags[ 128 ];
     rtnl_link_flags2str(hdr_rt->ifi_flags, flags, 64);
 
     std::cout
@@ -222,25 +222,24 @@ void interface::cbCacheLinkEvent2(
       std::cout << "change";
       break;
   }
-  //struct rtnl_link* link = (new_obj);
 
   const char *szType;
 
   if ( nullptr != old_obj ) {
     szType = nl_object_get_type(old_obj);
     std::cout <<",old type='" << szType << "'";
-    int ifindex = rtnl_link_get_ifindex((struct rtnl_link *)old_obj);
+    struct rtnl_link* link = (struct rtnl_link*)old_obj;
+    int ifindex = rtnl_link_get_ifindex( link );
     std::cout << ",index=" << ifindex;
   }
 
   if ( nullptr != new_obj ) {
     szType = nl_object_get_type(new_obj);
     std::cout <<",new type='" << szType << "'";
-    int ifindex = rtnl_link_get_ifindex((struct rtnl_link *)new_obj);
+    struct rtnl_link* link = (struct rtnl_link*)new_obj;
+    int ifindex = rtnl_link_get_ifindex( link );
     std::cout << ",index=" << ifindex;
   }
-
-  //nl_object_dump(new_obj, NULL);
 
   std::cout << std::endl;
 }
@@ -253,37 +252,39 @@ interface::interface()
 
   // ====  cache manager for link information
 
-  //m_nl_sock_cache_link = nl_socket_alloc();
-  //if ( nullptr == m_nl_sock_cache_link ) {
-  //  throw std::runtime_error( "no netlink socket - m_nl_sock_cache_link" );
-  //}
+  if ( false ) {
+    //m_nl_sock_cache_link = nl_socket_alloc();
+    //if ( nullptr == m_nl_sock_cache_link ) {
+    //  throw std::runtime_error( "no netlink socket - m_nl_sock_cache_link" );
+    //}
 
-  //status = nl_connect(m_nl_sock_cache_link, NETLINK_ROUTE);
+    //status = nl_connect(m_nl_sock_cache_link, NETLINK_ROUTE);
 
-  status = nl_cache_mngr_alloc(nullptr, NETLINK_ROUTE, NL_AUTO_PROVIDE, &m_cache_link_mngr);
-  //status = nl_cache_mngr_alloc(m_nl_sock_cache_link, NETLINK_ROUTE, NL_AUTO_PROVIDE, &m_cache_link_mngr);
-  if ( 0 > status ) {
-    throw std::runtime_error( "nl_cache_mngr_alloc failed" );
+    status = nl_cache_mngr_alloc(nullptr, NETLINK_ROUTE, NL_AUTO_PROVIDE, &m_cache_link_mngr);
+    //status = nl_cache_mngr_alloc(m_nl_sock_cache_link, NETLINK_ROUTE, NL_AUTO_PROVIDE, &m_cache_link_mngr);
+    if ( 0 > status ) {
+      throw std::runtime_error( "nl_cache_mngr_alloc failed" );
+    }
+
+    //status = rtnl_link_alloc_cache( m_nl_sock_cache_link, AF_UNSPEC, &m_cache_link );
+    //if ( 0 > status ) {
+    //  throw std::runtime_error( "cache issue - m_nl_sock_cache_link" );
+    //}
+
+    //status = nl_cache_mngr_add_cache_v2( m_cache_link_mngr, m_cache_link, &interface::cbCacheLinkEvent, this );
+    //if ( 0 < status ) {
+    //  throw std::runtime_error( "nl_cache_mngr_add_cache_v2 failed" );
+    //}
+
+    status = nl_cache_mngr_add(m_cache_link_mngr, "route/link", &interface::cbCacheLinkEvent1, this, &m_cache_link);
+    if ( 0 > status ) {
+      throw std::runtime_error( "nl_cache_mngr_add failed" );
+    }
+
+    nl_cache_foreach( m_cache_link, &interface::cbCacheLinkInitial, this );
+
+    //struct nl_dump_params* params;
   }
-
-  //status = rtnl_link_alloc_cache( m_nl_sock_cache_link, AF_UNSPEC, &m_cache_link );
-  //if ( 0 > status ) {
-  //  throw std::runtime_error( "cache issue - m_nl_sock_cache_link" );
-  //}
-
-  //status = nl_cache_mngr_add_cache_v2( m_cache_link_mngr, m_cache_link, &interface::cbCacheLinkEvent, this );
-  //if ( 0 < status ) {
-  //  throw std::runtime_error( "nl_cache_mngr_add_cache_v2 failed" );
-  //}
-
-  status = nl_cache_mngr_add(m_cache_link_mngr, "route/link", &interface::cbCacheLinkEvent1, this, &m_cache_link);
-  if ( 0 > status ) {
-    throw std::runtime_error( "nl_cache_mngr_add failed" );
-  }
-
-  nl_cache_foreach( m_cache_link, &interface::cbCacheLinkInitial, this );
-
-  //struct nl_dump_params* params;
 
   // ==== single message, with first message being link list
 
@@ -309,7 +310,68 @@ interface::interface()
 
   }
 
-  // ==== disabled - listen for link changes, superceded by cache manager
+  // ==== single message, with attribute to request only interface statistics
+  //    => can't seem to only get interface statistics
+
+  if ( false ) {
+    m_nl_sock_statistics = nl_socket_alloc();
+    if ( nullptr == m_nl_sock_statistics ) {
+      throw std::runtime_error( "no statistics socket" );
+    }
+
+    status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Valid, this);
+    status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_FINISH, NL_CB_CUSTOM, &cbCmd_Msg_Finished, this);
+    status = nl_connect( m_nl_sock_statistics, NETLINK_ROUTE);
+
+    struct nl_msg* msg;
+
+    msg = nlmsg_alloc();
+    //msg = nlmsg_alloc_simple( RTM_GETLINK, NLM_F_DUMP );
+    if ( nullptr == msg ) {
+      throw std::runtime_error( "no message allocated for statistics socket" );
+    }
+
+    struct nlmsghdr* hdr;
+    hdr = nlmsg_put( msg, NL_AUTO_PID, NL_AUTO_SEQ, RTM_GETLINK, 0, NLM_F_DUMP );
+    //hdr = nlmsg_put( msg, NL_AUTO_PID, NL_AUTO_SEQ, RTM_GETLINK, 0, 0 );
+
+    struct ifinfomsg ifi = {
+      .ifi_family = AF_UNSPEC,
+      .ifi_index = 1
+    };
+
+    if ( 0 > nlmsg_append( msg, &ifi, sizeof(ifi), NLMSG_ALIGNTO) ) {
+      throw std::runtime_error( "nnlmsg_append" );
+    }
+
+    struct rtgenmsg rt_hdr = {
+      .rtgen_family = AF_UNSPEC,
+    };
+
+    //if ( 0 > nlmsg_append( msg, &rt_hdr, sizeof(rt_hdr), NLMSG_ALIGNTO) ) {
+    //  throw std::runtime_error( "nnlmsg_append" );
+    //}
+
+    struct nlattr* attr;
+    //attr = nla_reserve( msg, IFLA_STATS, 0 );
+    status = nla_put_flag( msg, IFLA_STATS );
+    if ( 0 > status ) {
+      throw std::runtime_error( "IFLA_STATS" );
+    }
+
+    status = nl_send_auto( m_nl_sock_statistics, msg );
+    if ( 0 > status ) {
+      std::cout << "m_nl_sock_statistics error: " << status << std::endl;
+      throw std::runtime_error( "m_nl_sock_statistics error" );
+    }
+
+    nlmsg_free( msg );
+
+    status = nl_recvmsgs_default(m_nl_sock_statistics);
+
+  }
+
+  // ==== disabled - listen for link changes, superseded by cache manager
 
   if ( false ) {
     m_nl_sock_event = nl_socket_alloc();
@@ -332,10 +394,10 @@ interface::interface()
   m_threadPoll = std::move( std::thread(
     [this](){
       while ( m_bPoll ) {
-        int status = nl_cache_mngr_poll(m_cache_link_mngr, 500); //  ms
+        //int status = nl_cache_mngr_poll(m_cache_link_mngr, 500); //  ms
         //if ( 0 == status ) std::cout << "nl_cache_mngr_poll polling" << std::endl;
-        if ( 0 < status ) std::cout << "nl_cache_mngr_poll msgs=" << status << std::endl;
-        if ( 0 > status ) std::cout << "nl_cache_mngr_poll error=" << status << std::endl;
+        //if ( 0 < status ) std::cout << "nl_cache_mngr_poll msgs=" << status << std::endl;
+        //if ( 0 > status ) std::cout << "nl_cache_mngr_poll error=" << status << std::endl;
       }
     } ) );
 }
@@ -351,10 +413,12 @@ interface::~interface() {
   //int nl_socket_drop_memberships(struct nl_sock *sk, int group, ...);
 
   //nl_close( m_nl_sock_event );
-  nl_close( m_nl_sock_cmd );
-  nl_close( m_nl_sock_cache_link );
+  //nl_close( m_nl_sock_cmd );
+  //nl_close( m_nl_sock_cache_link );
+  nl_close( m_nl_sock_statistics );
 
   //nl_socket_free( m_nl_sock_event );
-  nl_socket_free( m_nl_sock_cmd );
-  nl_socket_free( m_nl_sock_cache_link );
+  //nl_socket_free( m_nl_sock_cmd );
+  //nl_socket_free( m_nl_sock_cache_link );
+  nl_socket_free( m_nl_sock_statistics );
 }

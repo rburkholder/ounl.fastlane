@@ -26,6 +26,7 @@ protected:
 private:
 
   struct nl_sock* m_nl_sock_cmd;
+  struct nl_sock* m_nl_sock_statistics;
   struct nl_sock* m_nl_sock_event;
   struct nl_sock* m_nl_sock_cache_link;
 
