@@ -10,6 +10,8 @@
 #include <stdexcept>
 #include <iostream>
 #include <cassert>
+#include <unistd.h>
+#include <cstring>
 
 #include "interface.h"
 
@@ -26,13 +28,10 @@ extern "C" {
 //   libnl/doc/api/lib_2route_2link_8c_source.html
 }
 
-int interface::cbCmd_Msg_Valid(struct nl_msg *msg, void *arg) {
-  interface* self = reinterpret_cast<interface*>( arg );
-
+void decode( struct nl_msg* msg ) {
   // obtain message header
   struct nlmsghdr *hdr;
   hdr = nlmsg_hdr( msg );
-  std::cout << "interface::cbCmd_Msg_Valid: " << std::endl;
 
   // content of message header
   int length( hdr->nlmsg_len );
@@ -121,28 +120,47 @@ int interface::cbCmd_Msg_Valid(struct nl_msg *msg, void *arg) {
         int remaining;
         //attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
         //int len = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
-//        attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
-//        remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
+        attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
+        remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
 
-//        while (nla_ok(attr, remaining)) {
+        //struct rtnl_link_stats64* stats64;
+        struct rtnl_link_stats64 stats64;
+
+        while (nla_ok(attr, remaining)) {
 //          std::cout
 //            << "      attr: "
 //            << "type=" << attr->nla_type
 //            << ",len=" << attr->nla_len
 //            << std::endl;
-//          void* data = nla_data( attr );
-//          switch ( attr->nla_type ) {
-//            // attribute types are complicated for this message,
-//            //   therefore reverting to use the link cache code
-//          }
-//          attr = nla_next(attr, &remaining);
-//        };
+          void* data = nla_data( attr );
+          switch ( attr->nla_type ) {
+            case IFLA_STATS:
+              //std::cout << "        IFLA_STATS size=" << attr->nla_len << std::endl;
+              break;
+            case IFLA_IFNAME:
+              std::cout << "        IFLA_IFNAME=" << (char*)nla_data(attr) << std::endl;
+              break;
+            case IFLA_STATS64:
+              memcpy( &stats64, (struct rtnl_link_stats64*)nla_data(attr), sizeof( struct rtnl_link_stats64 ) );
+              std::cout << "        IFLA_STATS64 rx=" << stats64.rx_packets << std::endl;
+              break;
+          }
+          attr = nla_next(attr, &remaining);
+        };
         }
         break;
     }
 
     hdr = nlmsg_next(hdr, &length);
   }
+
+}
+
+int interface::cbCmd_Msg_Valid(struct nl_msg* msg, void* arg) {
+  interface* self = reinterpret_cast<interface*>( arg );
+  std::cout << "interface::cbCmd_Msg_Valid: " << std::endl;
+
+  decode( msg );
 
   return NL_OK;
 }
@@ -159,9 +177,12 @@ int interface::cbCmd_Msg_Finished(struct nl_msg *msg, void *arg) {
   return NL_OK;
 }
 
-int interface::cbLinkEvent(struct nl_msg *msg, void *arg) {
+int interface::cbLinkEvent(struct nl_msg* msg, void* arg) {
   interface* self = reinterpret_cast<interface*>( arg );
-  std::cout << "interface::cbLinkEvent" << std::endl;
+  std::cout << "interface::cbLinkEvent: " << std::endl;
+
+  decode( msg );
+
   return NL_OK;
 }
 
@@ -312,7 +333,7 @@ interface::interface()
 
   // ==== single message, with first message being link list
 
-  if ( false ) { // initial message testing
+  if ( true ) { // initial message testing
     m_nl_sock_cmd = nl_socket_alloc();
     if ( nullptr == m_nl_sock_cmd ) {
       throw std::runtime_error( "no netlink socket - cmd" );
@@ -323,6 +344,7 @@ interface::interface()
     status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Valid, this);
     status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_FINISH, NL_CB_CUSTOM, &cbCmd_Msg_Finished, this);
     status = nl_connect(m_nl_sock_cmd, NETLINK_ROUTE);
+    status = nl_socket_set_nonblocking(m_nl_sock_cmd); // poll returns immediately
 
     struct rtgenmsg rt_hdr = {
       .rtgen_family = AF_UNSPEC,
@@ -330,7 +352,7 @@ interface::interface()
     status = nl_send_simple(m_nl_sock_cmd, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
 
     //status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
-    status = nl_recvmsgs_default(m_nl_sock_cmd);
+    //status = nl_recvmsgs_default(m_nl_sock_cmd);
 
   }
 
@@ -368,9 +390,9 @@ interface::interface()
       throw std::runtime_error( "nnlmsg_append" );
     }
 
-    struct rtgenmsg rt_hdr = {
-      .rtgen_family = AF_UNSPEC,
-    };
+    //struct rtgenmsg rt_hdr = {
+    //  .rtgen_family = AF_UNSPEC,
+    //};
 
     //if ( 0 > nlmsg_append( msg, &rt_hdr, sizeof(rt_hdr), NLMSG_ALIGNTO) ) {
     //  throw std::runtime_error( "nnlmsg_append" );
@@ -395,21 +417,23 @@ interface::interface()
 
   }
 
-  // ==== disabled - listen for link changes, superseded by cache manager
+  // ==== listen for link changes
 
-  if ( false ) {
+  if ( true ) {
+
     m_nl_sock_event = nl_socket_alloc();
     if ( nullptr == m_nl_sock_event ) {
       throw std::runtime_error( "no netlink socket - event" );
     }
+
     nl_socket_disable_seq_check(m_nl_sock_event);
     status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbLinkEvent, this);
     status = nl_connect(m_nl_sock_event, NETLINK_ROUTE);
-    //status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
+    status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
     status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_LINK, 0);
 
     //while (1)
-      status = nl_recvmsgs_default(m_nl_sock_event);
+      //status = nl_recvmsgs_default(m_nl_sock_event);
   }
 
   // ==== add thread for polling on sockets
@@ -421,37 +445,44 @@ interface::interface()
         .rtgen_family = AF_UNSPEC,
       };
       m_cntLoops = 10;
+      int status;
       while ( m_bPoll ) {
+        status = nl_recvmsgs_default(m_nl_sock_cmd);
+        status = nl_recvmsgs_default(m_nl_sock_event);
+        usleep( 200000 );
+
         //int status = nl_cache_mngr_poll(m_cache_link_mngr, 500); //  ms
         //if ( 0 == status ) std::cout << "nl_cache_mngr_poll polling" << std::endl;
-        //if ( 0 < status ) std::cout << "nl_cache_mngr_poll msgs=" << status << std::endl;
-        //if ( 0 > status ) std::cout << "nl_cache_mngr_poll error=" << status << std::endl;
-        //m_cntLoops--;
-        //if ( 0 == m_cntLoops ) {
+        //if ( 0 < status ) std::cout << "poll msgs=" << status << std::endl;
+        //if ( 0 > status ) std::cout << "poll error=" << status << std::endl;
+        m_cntLoops--;
+        if ( 0 == m_cntLoops ) {
         //  status = nl_send_simple(m_nl_sock_cache_link, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
-        //  m_cntLoops = 10;
-        //}
+          status = nl_send_simple(m_nl_sock_cmd, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
+          m_cntLoops = 10;
+        }
       }
     } ) );
 }
 
 interface::~interface() {
 
-  m_bPoll = false;
-  m_threadPoll.join();
-
   //nl_cache_mngr_free( m_cache_link_mngr );
   //nl_cache_free( m_cache_link );
 
   //int nl_socket_drop_memberships(struct nl_sock *sk, int group, ...);
 
-  //nl_close( m_nl_sock_event );
-  //nl_close( m_nl_sock_cmd );
+  nl_close( m_nl_sock_event );
+  nl_close( m_nl_sock_cmd );
   //nl_close( m_nl_sock_cache_link );
   //nl_close( m_nl_sock_statistics );
 
-  //nl_socket_free( m_nl_sock_event );
-  //nl_socket_free( m_nl_sock_cmd );
+  // put here when no time out available
+  m_bPoll = false;
+  m_threadPoll.join();
+
+  nl_socket_free( m_nl_sock_event );
+  nl_socket_free( m_nl_sock_cmd );
   //nl_socket_free( m_nl_sock_cache_link );
   //nl_socket_free( m_nl_sock_statistics );
 }

@@ -1,3 +1,19 @@
+2019/089/26
+
+early doc on parts of messages and attributes
+http://smacked.org/docs/netlink.pdf
+
+man page for netlink with many constants:
+http://man7.org/linux/man-pages/man7/rtnetlink.7.html
+
+sample qdisc and class code:`
+https://lwn.net/Articles/109191/
+
+may have some guidance on decoding netlink link/tc/addr
+https://github.com/collectd/collectd/blob/master/src/netlink.c
+
+https://unix.stackexchange.com/questions/441876/how-to-find-the-network-namespace-of-a-veth-peer-ifindex/441898
+
 2019/08/25
 https://lore.kernel.org/patchwork/patch/876813/
 nlmsghdr->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
