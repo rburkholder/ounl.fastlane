@@ -12,7 +12,36 @@ https://lwn.net/Articles/109191/
 may have some guidance on decoding netlink link/tc/addr
 https://github.com/collectd/collectd/blob/master/src/netlink.c
 
+notes: links can be renumbered, index is not unique across host, use index+nsid (namespace id for uniqueness) [IFLA_IF_NETNSID which may or may not be available]
 https://unix.stackexchange.com/questions/441876/how-to-find-the-network-namespace-of-a-veth-peer-ifindex/441898
+
+in doxygen source, useful links:
+libnl/doc/api/lib_2route_2link_8c_source.html
+lib/route/link.c
+
+nested attributes IFLA_AF_SPEC, IFLA_AF_SPEC
+https://lists.gnu.org/archive/html/qemu-devel/2016-07/msg04282.html
+
+from https://www.keepalived.org/changelog.html:
+Fix setting i/f params on a bridge underlying i/f of a VMAC
+  Issue #944 identified that when the underlying interface of a VMAC
+  interface was a bridge, keepalived was failing to set arp_ignore and
+  arp_filter in the underlying bridge interface. The problem appears to
+  lie in the libnl3 library. The description of the problem given in the
+  issue report was:
+    Problem is that ifi_family is set to AF_BRIDGE, whereas it should be set
+    to AF_UNSPEC. The kernel function that handles RTM_SETLINK messages for
+  AF_BRIDGE doesn't know how to process the IFLA_AF_SPEC attribute.
+  This commit stops using libnl3 for setting/clearing arp_ignore and
+  arp_filter, and directly constructs the netlink messages in keepalived.
+* Use RTM_NEWLINK rather than RTM_SETLINK for setting i/f options
+  libnl3 uses RTM_NEWLINK rather than RTM_SETLINK for setting
+  interface options when ifi_family is AF_UNSPEC, so update commit
+  9b2b2c9 - "Fix setting i/f params on a bridge underlying i/f of
+  a VMAC" to do likewise.
+
+[PATCH 2/3] Handle family-based parsing of IFLA_AF_SPEC attribute
+https://lists.infradead.org/pipermail/libnl/2015-November/002034.html
 
 2019/08/25
 https://lore.kernel.org/patchwork/patch/876813/

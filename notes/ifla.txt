@@ -1,0 +1,106 @@
+libnl/doc/api/lib_2route_2link_8c_source.html
+
+  343 struct nla_policy rtln_link_policy[IFLA_MAX+1] = {
+  344         [IFLA_IFNAME]           = { .type = NLA_STRING,
+  345                                     .maxlen = IFNAMSIZ },
+  346         [IFLA_MTU]              = { .type = NLA_U32 },
+  347         [IFLA_TXQLEN]           = { .type = NLA_U32 },
+  348         [IFLA_LINK]             = { .type = NLA_U32 },
+  349         [IFLA_WEIGHT]           = { .type = NLA_U32 },
+  350         [IFLA_MASTER]           = { .type = NLA_U32 },
+  351         [IFLA_OPERSTATE]        = { .type = NLA_U8 },
+  352         [IFLA_LINKMODE]         = { .type = NLA_U8 },
+  353         [IFLA_LINKINFO]         = { .type = NLA_NESTED },
+  354         [IFLA_QDISC]            = { .type = NLA_STRING,
+  355                                     .maxlen = IFQDISCSIZ },
+  356         [IFLA_STATS]            = { .minlen = _nl_offsetofend (struct rtnl_link_stats, tx_compressed) },
+  357         [IFLA_STATS64]          = { .minlen = _nl_offsetofend (struct rtnl_link_stats64, tx_compressed) },
+  358         [IFLA_MAP]              = { .minlen = sizeof(struct rtnl_link_ifmap) },
+  359         [IFLA_IFALIAS]          = { .type = NLA_STRING, .maxlen = IFALIASZ },
+  360         [IFLA_NUM_VF]           = { .type = NLA_U32 },
+  361         [IFLA_VFINFO_LIST]      = { .type = NLA_NESTED },
+  362         [IFLA_AF_SPEC]          = { .type = NLA_NESTED },
+  363         [IFLA_PROMISCUITY]      = { .type = NLA_U32 },
+  364         [IFLA_NUM_TX_QUEUES]    = { .type = NLA_U32 },
+  365         [IFLA_NUM_RX_QUEUES]    = { .type = NLA_U32 },
+  366         [IFLA_GSO_MAX_SEGS]     = { .type = NLA_U32 },
+  367         [IFLA_GSO_MAX_SIZE]     = { .type = NLA_U32 },
+  368         [IFLA_GROUP]            = { .type = NLA_U32 },
+  369         [IFLA_CARRIER]          = { .type = NLA_U8 },
+  370         [IFLA_CARRIER_CHANGES]  = { .type = NLA_U32 },
+  371         [IFLA_PHYS_PORT_ID]     = { .type = NLA_UNSPEC },
+  372         [IFLA_PHYS_PORT_NAME]   = { .type = NLA_STRING, .maxlen = IFNAMSIZ },
+  373         [IFLA_PHYS_SWITCH_ID]   = { .type = NLA_UNSPEC },
+  374         [IFLA_NET_NS_PID]       = { .type = NLA_U32 },
+  375         [IFLA_NET_NS_FD]        = { .type = NLA_U32 },
+  376 };
+  377 
+  378 static struct nla_policy link_info_policy[IFLA_INFO_MAX+1] = {
+  379         [IFLA_INFO_KIND]        = { .type = NLA_STRING },
+  380         [IFLA_INFO_DATA]        = { .type = NLA_NESTED },
+  381         [IFLA_INFO_XSTATS]      = { .type = NLA_NESTED },
+  382 };
+
+        IFLA_IFNAME=veth-nvpn-v90    	IFLA_UNSPEC,
+        4 size=8                     	IFLA_ADDRESS,
+        5 size=8                     	IFLA_BROADCAST,
+        10 size=8                     	IFLA_IFNAME,
+        13 size=8                 4   	IFLA_MTU,
+        14 size=36                5   	IFLA_LINK,
+        16 size=5                     	IFLA_QDISC,
+        17 size=5                     	IFLA_STATS,
+        18 size=32                    	IFLA_COST,
+        26 size=760                  #define IFLA_COST IFLA_COST
+        27 size=8                      	IFLA_PRIORITY,
+        30 size=8                    #define IFLA_PRIORITY IFLA_PRIORITY
+        31 size=8                  10  	IFLA_MASTER,
+        32 size=8                    #define IFLA_MASTER IFLA_MASTER
+        33 size=5                      	IFLA_WIRELESS,		/* Wireless Extension event - see wireless.h */
+        35 size=8                    #define IFLA_WIRELESS IFLA_WIRELESS
+        37 size=8                    	IFLA_PROTINFO,		/* Protocol specific information for a link */
+        39 size=5                    #define IFLA_PROTINFO IFLA_PROTINFO
+        40 size=8                 13 	IFLA_TXQLEN,
+        41 size=8                    #define IFLA_TXQLEN IFLA_TXQLEN
+        43 size=12                14 	IFLA_MAP,
+        47 size=8                    #define IFLA_MAP IFLA_MAP
+        48 size=8                    	IFLA_WEIGHT,
+        50 size=8                    #define IFLA_WEIGHT IFLA_WEIGHT
+        51 size=8                 16 	IFLA_OPERSTATE,
+        IFLA_QDISC size=12        17 	IFLA_LINKMODE,
+        IFLA_ADDRESS size=10      18 	IFLA_LINKINFO,
+        IFLA_BROADCAST size=10       #define IFLA_LINKINFO IFLA_LINKINFO
+        IFLA_STATS64 rx=18027000     	IFLA_NET_NS_PID,
+                                     	IFLA_IFALIAS,
+                                     	IFLA_NUM_VF,		/* Number of VFs if device is SR-IOV PF */
+                                     	IFLA_VFINFO_LIST,
+                                     	IFLA_STATS64,
+                                     	IFLA_VF_PORTS,
+                                     	IFLA_PORT_SELF,
+                                  26 	IFLA_AF_SPEC,
+                                  27 	IFLA_GROUP,		/* Group the device belongs to */
+                                     	IFLA_NET_NS_FD,
+                                     	IFLA_EXT_MASK,		/* Extended info mask, VFs, etc */
+                                  30 	IFLA_PROMISCUITY,	/* Promiscuity count: > 0 means acts PROMISC */
+                                     #define IFLA_PROMISCUITY IFLA_PROMISCUITY
+                                  31 	IFLA_NUM_TX_QUEUES,
+                                  32 	IFLA_NUM_RX_QUEUES,
+                                  33 	IFLA_CARRIER,
+                                     	IFLA_PHYS_PORT_ID,
+                                  35 	IFLA_CARRIER_CHANGES,
+                                     	IFLA_PHYS_SWITCH_ID,
+                                  37 	IFLA_LINK_NETNSID,
+                                     	IFLA_PHYS_PORT_NAME,
+                                  39 	IFLA_PROTO_DOWN,
+                                  40 	IFLA_GSO_MAX_SEGS,
+                                  41 	IFLA_GSO_MAX_SIZE,
+                                     	IFLA_PAD,
+                                  43 	IFLA_XDP,
+                                     	IFLA_EVENT,
+                                     	IFLA_NEW_NETNSID,
+                                     	IFLA_IF_NETNSID,
+                                  47 	IFLA_CARRIER_UP_COUNT,
+                                  48 	IFLA_CARRIER_DOWN_COUNT,
+                                     	IFLA_NEW_IFINDEX,
+                                  50 	IFLA_MIN_MTU,
+                                  51 	IFLA_MAX_MTU,
+
