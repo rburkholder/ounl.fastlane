@@ -28,49 +28,94 @@ extern "C" {
 //   libnl/doc/api/lib_2route_2link_8c_source.html
 }
 
-void decode( struct nl_msg* msg ) {
-  // obtain message header
+void decodeMessageHeader( struct nlmsghdr *hdr ) {
+  std::cout
+    << "  len=" << hdr->nlmsg_len
+    //<< ",type=" << hdr->nlmsg_type
+    << ",";
+  if ( RTM_NEWLINK == hdr->nlmsg_type ) std::cout << "RTM_NEWLINK";
+  if ( RTM_DELLINK == hdr->nlmsg_type ) std::cout << "RTM_DELLINK";
+  if ( RTM_GETLINK == hdr->nlmsg_type ) std::cout << "RTM_GETLINK";
+  if ( RTM_SETLINK == hdr->nlmsg_type ) std::cout << "RTM_SETLINK";
+  if ( RTM_NEWADDR == hdr->nlmsg_type ) std::cout << "RTM_NEWADDR";
+  if ( RTM_DELADDR == hdr->nlmsg_type ) std::cout << "RTM_DELADDR";
+  if ( RTM_GETADDR == hdr->nlmsg_type ) std::cout << "RTM_GETADDR";
+  if ( RTM_NEWROUTE == hdr->nlmsg_type ) std::cout << "RTM_NEWROUTE";
+  if ( RTM_DELROUTE == hdr->nlmsg_type ) std::cout << "RTM_DELROUTE";
+  if ( RTM_GETROUTE == hdr->nlmsg_type ) std::cout << "RTM_GETROUTE";
+  if ( RTM_NEWNEIGH == hdr->nlmsg_type ) std::cout << "RTM_NEWNEIGH";
+  if ( RTM_DELNEIGH == hdr->nlmsg_type ) std::cout << "RTM_DELNEIGH";
+  if ( RTM_GETNEIGH == hdr->nlmsg_type ) std::cout << "RTM_GETNEIGH";
+  if ( RTM_NEWRULE == hdr->nlmsg_type ) std::cout << "RTM_NEWRULE";
+  if ( RTM_DELRULE == hdr->nlmsg_type ) std::cout << "RTM_DELRULE";
+  if ( RTM_GETRULE == hdr->nlmsg_type ) std::cout << "RTM_GETRULE";
+  if ( RTM_NEWQDISC == hdr->nlmsg_type ) std::cout << "RTM_NEWQDISC";
+  if ( RTM_DELQDISC == hdr->nlmsg_type ) std::cout << "RTM_DELQDISC";
+  if ( RTM_GETQDISC == hdr->nlmsg_type ) std::cout << "RTM_GETQDISC";
+  if ( RTM_NEWTCLASS == hdr->nlmsg_type ) std::cout << "RTM_NEWTCLASS";
+  if ( RTM_DELTCLASS == hdr->nlmsg_type ) std::cout << "RTM_DELTCLASS";
+  if ( RTM_GETTCLASS == hdr->nlmsg_type ) std::cout << "RTM_GETTCLASS";
+  if ( RTM_NEWTFILTER == hdr->nlmsg_type ) std::cout << "RTM_NEWTFILTER";
+  if ( RTM_DELTFILTER == hdr->nlmsg_type ) std::cout << "RTM_DELTFILTER";
+  if ( RTM_GETTFILTER == hdr->nlmsg_type ) std::cout << "RTM_GETTFILTER";
+
+  std::cout
+    << ",flags=" << std::hex << hdr->nlmsg_flags << std::dec // 2=NLM_F_MULTI
+    << ",seq=" << hdr->nlmsg_seq
+    << ",pid=" << hdr->nlmsg_pid
+    << std::endl;
+}
+
+void decode_ifinfomsg( ifinfomsg* ifinfo ) {
+
+  char proto[ 64 ];
+  nl_llproto2str( ifinfo->ifi_type, proto, 64 );
+
+  char flags[ 128 ];
+  rtnl_link_flags2str(ifinfo->ifi_flags, flags, 128);
+
+  std::cout
+    << "    family=" << (unsigned)ifinfo->ifi_family
+    << ",type=" << proto
+    << ",index=" << ifinfo->ifi_index
+    << ",flags=" << flags
+//      << ",change=" << hdr_rt->ifi_change
+  //if ( IFF_UP & hdr_rt->ifi_flags ) std::cout << ",up";
+  //if ( IFF_BROADCAST & hdr_rt->ifi_flags ) std::cout << ",broadcast";
+  //if ( IFF_DEBUG & hdr_rt->ifi_flags ) std::cout << ",debug";
+  //if ( IFF_LOOPBACK & hdr_rt->ifi_flags ) std::cout << ",loopback";
+  //if ( IFF_POINTOPOINT & hdr_rt->ifi_flags ) std::cout << ",pt2pt";
+  //if ( IFF_NOTRAILERS & hdr_rt->ifi_flags ) std::cout << ",no_trailers";
+  //if ( IFF_RUNNING & hdr_rt->ifi_flags ) std::cout << ",running";
+  //if ( IFF_NOARP & hdr_rt->ifi_flags ) std::cout << ",no_arp";
+  //if ( IFF_PROMISC & hdr_rt->ifi_flags ) std::cout << ",promisc";
+  //if ( IFF_ALLMULTI & hdr_rt->ifi_flags ) std::cout << ",all_multi";
+  //if ( IFF_MASTER & hdr_rt->ifi_flags ) std::cout << ",master";
+  //if ( IFF_SLAVE & hdr_rt->ifi_flags ) std::cout << ",slave";
+  //if ( IFF_MULTICAST & hdr_rt->ifi_flags ) std::cout << ",multicast";
+  //if ( IFF_PORTSEL & hdr_rt->ifi_flags ) std::cout << ",portsel";
+  //if ( IFF_AUTOMEDIA & hdr_rt->ifi_flags ) std::cout << ",auto_media";
+  //if ( IFF_DYNAMIC & hdr_rt->ifi_flags ) std::cout << ",dynamic";
+  //if ( IFF_LOWER_UP & hdr_rt->ifi_flags ) std::cout << ",lower_up";
+  //if ( IFF_DORMANT & hdr_rt->ifi_flags ) std::cout << ",dormant";
+  //if ( IFF_ECHO & hdr_rt->ifi_flags ) std::cout << ",echo";
+    << std::endl;
+
+}
+
+int interface::cbCmd_Msg_LinkInitial( struct nl_msg* msg, void* arg ) {
+
+  interface* self = reinterpret_cast<interface*>( arg );
+  //std::cout << "interface::cbCmd_Msg_LinkInitial: " << std::endl;
+
   struct nlmsghdr *hdr;
   hdr = nlmsg_hdr( msg );
+
+  link_t linkInfo;
 
   // content of message header
   int length( hdr->nlmsg_len );
   while (nlmsg_ok(hdr, length)) {
-    std::cout
-      << "  len=" << hdr->nlmsg_len
-      //<< ",type=" << hdr->nlmsg_type
-      << ",";
-    if ( RTM_NEWLINK == hdr->nlmsg_type ) std::cout << "RTM_NEWLINK";
-    if ( RTM_DELLINK == hdr->nlmsg_type ) std::cout << "RTM_DELLINK";
-    if ( RTM_GETLINK == hdr->nlmsg_type ) std::cout << "RTM_GETLINK";
-    if ( RTM_SETLINK == hdr->nlmsg_type ) std::cout << "RTM_SETLINK";
-    if ( RTM_NEWADDR == hdr->nlmsg_type ) std::cout << "RTM_NEWADDR";
-    if ( RTM_DELADDR == hdr->nlmsg_type ) std::cout << "RTM_DELADDR";
-    if ( RTM_GETADDR == hdr->nlmsg_type ) std::cout << "RTM_GETADDR";
-    if ( RTM_NEWROUTE == hdr->nlmsg_type ) std::cout << "RTM_NEWROUTE";
-    if ( RTM_DELROUTE == hdr->nlmsg_type ) std::cout << "RTM_DELROUTE";
-    if ( RTM_GETROUTE == hdr->nlmsg_type ) std::cout << "RTM_GETROUTE";
-    if ( RTM_NEWNEIGH == hdr->nlmsg_type ) std::cout << "RTM_NEWNEIGH";
-    if ( RTM_DELNEIGH == hdr->nlmsg_type ) std::cout << "RTM_DELNEIGH";
-    if ( RTM_GETNEIGH == hdr->nlmsg_type ) std::cout << "RTM_GETNEIGH";
-    if ( RTM_NEWRULE == hdr->nlmsg_type ) std::cout << "RTM_NEWRULE";
-    if ( RTM_DELRULE == hdr->nlmsg_type ) std::cout << "RTM_DELRULE";
-    if ( RTM_GETRULE == hdr->nlmsg_type ) std::cout << "RTM_GETRULE";
-    if ( RTM_NEWQDISC == hdr->nlmsg_type ) std::cout << "RTM_NEWQDISC";
-    if ( RTM_DELQDISC == hdr->nlmsg_type ) std::cout << "RTM_DELQDISC";
-    if ( RTM_GETQDISC == hdr->nlmsg_type ) std::cout << "RTM_GETQDISC";
-    if ( RTM_NEWTCLASS == hdr->nlmsg_type ) std::cout << "RTM_NEWTCLASS";
-    if ( RTM_DELTCLASS == hdr->nlmsg_type ) std::cout << "RTM_DELTCLASS";
-    if ( RTM_GETTCLASS == hdr->nlmsg_type ) std::cout << "RTM_GETTCLASS";
-    if ( RTM_NEWTFILTER == hdr->nlmsg_type ) std::cout << "RTM_NEWTFILTER";
-    if ( RTM_DELTFILTER == hdr->nlmsg_type ) std::cout << "RTM_DELTFILTER";
-    if ( RTM_GETTFILTER == hdr->nlmsg_type ) std::cout << "RTM_GETTFILTER";
-
-    std::cout
-      << ",flags=" << std::hex << hdr->nlmsg_flags << std::dec
-      << ",seq=" << hdr->nlmsg_seq
-      << ",pid=" << hdr->nlmsg_pid
-      << std::endl;
 
     // where the data resides
     void* data = nlmsg_data( hdr );
@@ -78,71 +123,249 @@ void decode( struct nl_msg* msg ) {
     int   len  = nlmsg_datalen( hdr );
 
     // because of the command sent, this is the message type to be expected
-    ifinfomsg* hdr_rt = reinterpret_cast<ifinfomsg*>( data );
+    ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
 
-    char proto[ 64 ];
-    nl_llproto2str( hdr_rt->ifi_type, proto, 64 );
+    linkInfo.if_index = ifinfo->ifi_index;
 
-    char flags[ 128 ];
-    rtnl_link_flags2str(hdr_rt->ifi_flags, flags, 64);
+    linkInfo.bUp      = ( IFF_UP       & ifinfo->ifi_flags );
+    linkInfo.bLowerUp = ( IFF_LOWER_UP & ifinfo->ifi_flags );
+    linkInfo.bRunning = ( IFF_RUNNING  & ifinfo->ifi_flags );
 
-    std::cout
-      << "    family=" << (unsigned)hdr_rt->ifi_family
-      << ",type=" << proto
-      << ",index=" << hdr_rt->ifi_index
-      << ",flags=" << flags
-//      << ",change=" << hdr_rt->ifi_change
-    //if ( IFF_UP & hdr_rt->ifi_flags ) std::cout << ",up";
-    //if ( IFF_BROADCAST & hdr_rt->ifi_flags ) std::cout << ",broadcast";
-    //if ( IFF_DEBUG & hdr_rt->ifi_flags ) std::cout << ",debug";
-    //if ( IFF_LOOPBACK & hdr_rt->ifi_flags ) std::cout << ",loopback";
-    //if ( IFF_POINTOPOINT & hdr_rt->ifi_flags ) std::cout << ",pt2pt";
-    //if ( IFF_NOTRAILERS & hdr_rt->ifi_flags ) std::cout << ",no_trailers";
-    //if ( IFF_RUNNING & hdr_rt->ifi_flags ) std::cout << ",running";
-    //if ( IFF_NOARP & hdr_rt->ifi_flags ) std::cout << ",no_arp";
-    //if ( IFF_PROMISC & hdr_rt->ifi_flags ) std::cout << ",promisc";
-    //if ( IFF_ALLMULTI & hdr_rt->ifi_flags ) std::cout << ",all_multi";
-    //if ( IFF_MASTER & hdr_rt->ifi_flags ) std::cout << ",master";
-    //if ( IFF_SLAVE & hdr_rt->ifi_flags ) std::cout << ",slave";
-    //if ( IFF_MULTICAST & hdr_rt->ifi_flags ) std::cout << ",multicast";
-    //if ( IFF_PORTSEL & hdr_rt->ifi_flags ) std::cout << ",portsel";
-    //if ( IFF_AUTOMEDIA & hdr_rt->ifi_flags ) std::cout << ",auto_media";
-    //if ( IFF_DYNAMIC & hdr_rt->ifi_flags ) std::cout << ",dynamic";
-    //if ( IFF_LOWER_UP & hdr_rt->ifi_flags ) std::cout << ",lower_up";
-    //if ( IFF_DORMANT & hdr_rt->ifi_flags ) std::cout << ",dormant";
-    //if ( IFF_ECHO & hdr_rt->ifi_flags ) std::cout << ",echo";
-    //std::cout
-      << std::endl;
+    switch ( ifinfo->ifi_type ) {
+      case ARPHRD_LOOPBACK:
+        linkInfo.bLoopback = true;
+        break;
+      case ARPHRD_ETHER:
+        linkInfo.bEthernet = true;
+        break;
+    }
+
+    assert( RTM_NEWLINK == hdr->nlmsg_type );
+
+    struct nlattr* attr;
+    attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
+
+    int remaining;
+    remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
+
+    struct rtnl_link_stats64 stats64;
+
+    while (nla_ok(attr, remaining)) {
+      void* data = nla_data( attr );
+      switch ( attr->nla_type ) {
+        case IFLA_IFNAME:
+          linkInfo.if_name = (char*)data;
+          break;
+        case IFLA_STATS64:
+          // need to copy because structure is 4 byte aligned, not 8 byte aligned
+          memcpy( &stats64, (struct rtnl_link_stats64*)data, sizeof( struct rtnl_link_stats64 ) );
+          break;
+        case IFLA_ADDRESS:
+          if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
+            for ( int ix = 0; ix++; ix < 6 ) linkInfo.mac[ ix ] = ((uint8_t*)data)[ ix ];
+          }
+          break;
+        case IFLA_BROADCAST:
+          if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
+            for ( int ix = 0; ix++; ix < 6 ) linkInfo.broadcast[ ix ] = ((uint8_t*)data)[ ix ];
+          }
+          break;
+        case IFLA_QDISC:
+          linkInfo.qdisk = (char*)data;
+          break;
+        default:
+          //std::cout << "        " << attr->nla_type << " size=" << attr->nla_len << std::endl;
+          break;
+      }
+      attr = nla_next(attr, &remaining);
+    };
+
+    if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( linkInfo, stats64 );
+
+    hdr = nlmsg_next(hdr, &length);
+  }
+
+  return NL_OK;
+}
+
+int interface::cbCmd_Msg_LinkDelta( struct nl_msg* msg, void* arg ) {
+  interface* self = reinterpret_cast<interface*>( arg );
+  std::cout << "interface::cbCmd_Msg_LinkDelta: " << std::endl;
+
+  struct nlmsghdr *hdr;
+  hdr = nlmsg_hdr( msg );
+
+  link_t linkInfo;
+
+  // content of message header
+  int length( hdr->nlmsg_len );
+  while (nlmsg_ok(hdr, length)) {
+
+    // where the data resides
+    void* data = nlmsg_data( hdr );
+    void* tail = nlmsg_tail( hdr );
+    int   len  = nlmsg_datalen( hdr );
+
+    // because of the command sent, this is the message type to be expected
+    ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
+
+    linkInfo.if_index = ifinfo->ifi_index;
+
+    linkInfo.bUp      = ( IFF_UP       & ifinfo->ifi_flags );
+    linkInfo.bLowerUp = ( IFF_LOWER_UP & ifinfo->ifi_flags );
+    linkInfo.bRunning = ( IFF_RUNNING  & ifinfo->ifi_flags );
+
+    switch ( ifinfo->ifi_type ) {
+      case ARPHRD_LOOPBACK:
+        linkInfo.bLoopback = true;
+        break;
+      case ARPHRD_ETHER:
+        linkInfo.bEthernet = true;
+        break;
+    }
+
+    struct nlattr* attr;
+    attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
+
+    int remaining;
+    remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
+
+    struct rtnl_link_stats64 stats64;
+
+    switch( hdr->nlmsg_type ) {
+      case RTM_NEWLINK:
+        while (nla_ok(attr, remaining)) {
+          void* data = nla_data( attr );
+          switch ( attr->nla_type ) {
+            case IFLA_IFNAME:
+              linkInfo.if_name = (char*)data;
+              break;
+            case IFLA_STATS64:
+              // need to copy because structure is 4 byte aligned, not 8 byte aligned
+              memcpy( &stats64, (struct rtnl_link_stats64*)data, sizeof( struct rtnl_link_stats64 ) );
+              break;
+            case IFLA_ADDRESS:
+              if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
+                for ( int ix = 0; ix++; ix < 6 ) linkInfo.mac[ ix ] = ((uint8_t*)data)[ ix ];
+              }
+              break;
+            case IFLA_BROADCAST:
+              if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
+                for ( int ix = 0; ix++; ix < 6 ) linkInfo.broadcast[ ix ] = ((uint8_t*)data)[ ix ];
+              }
+              break;
+            case IFLA_QDISC:
+              linkInfo.qdisk = (char*)data;
+              break;
+            default:
+              //std::cout << "        " << attr->nla_type << " size=" << attr->nla_len << std::endl;
+              break;
+          }
+          attr = nla_next(attr, &remaining);
+        };
+
+        if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( linkInfo, stats64 );
+        break;
+      case RTM_DELLINK:
+        // TODO: test what happens when loopback created in namespace
+        // TOOD: test what happens as veth moved in and out of namespace
+        self->decodeLinkDiag( msg ); // TODO: fix: decodes multipart multiple times
+        break;
+    }
+
+    hdr = nlmsg_next(hdr, &length);
+  }
+
+  return NL_OK;
+}
+
+int interface::cbCmd_Msg_LinkStats( struct nl_msg* msg, void* arg ) {
+  interface* self = reinterpret_cast<interface*>( arg );
+  std::cout << "interface::cbCmd_Msg_LinkStats: " << std::endl;
+
+  struct nlmsghdr *hdr;
+  hdr = nlmsg_hdr( msg );
+
+  // content of message header
+  int length( hdr->nlmsg_len );
+  while (nlmsg_ok(hdr, length)) {
+
+    // where the data resides
+    void* data = nlmsg_data( hdr );
+    //void* tail = nlmsg_tail( hdr );
+    //int   len  = nlmsg_datalen( hdr );
+
+    // because of the command sent, this is the message type to be expected
+    ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
+
+    //assert( RTM_NEWLINK == hdr->nlmsg_type );
+
+    struct nlattr* attr;
+    attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
+
+    int remaining;
+    remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
+
+    struct rtnl_link_stats64 stats64;
+
+    while (nla_ok(attr, remaining)) {
+      if ( IFLA_STATS64 == attr->nla_type ) {
+        // need to copy because structure is 4 byte aligned, not 8 byte aligned
+        memcpy( &stats64, (struct rtnl_link_stats64*)(nla_data( attr )), sizeof( struct rtnl_link_stats64 ) );
+        if ( nullptr != self->m_fLinkStats ) {
+          self->m_fLinkStats( ifinfo->ifi_index, stats64 );
+        }
+        break;
+      }
+
+      attr = nla_next(attr, &remaining);
+    };
+    hdr = nlmsg_next(hdr, &length);
+  }
+
+  return NL_OK;
+}
+
+void interface::decodeLinkDiag( struct nl_msg* msg ) {
+
+  struct nlmsghdr *hdr;
+  hdr = nlmsg_hdr( msg );
+
+  //decodeMessageHeader( hdr );
+
+  // content of message header
+  int length( hdr->nlmsg_len );
+  while (nlmsg_ok(hdr, length)) {
+
+    // where the data resides
+    void* data = nlmsg_data( hdr );
+    void* tail = nlmsg_tail( hdr );
+    int   len  = nlmsg_datalen( hdr );
+
+    // because of the command sent, this is the message type to be expected
+    ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
+    decode_ifinfomsg( ifinfo );
 
     switch ( hdr->nlmsg_type ) {
       case RTM_NEWLINK: {
         struct nlattr* attr;
         int remaining;
-        //attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
-        //int len = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
         attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
         remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
 
-        //struct rtnl_link_stats64* stats64;
-        struct rtnl_link_stats64 stats64;
-
         while (nla_ok(attr, remaining)) {
-//          std::cout
-//            << "      attr: "
-//            << "type=" << attr->nla_type
-//            << ",len=" << attr->nla_len
-//            << std::endl;
+          std::cout
+            << "      attr: "
+            << "type=" << attr->nla_type
+            << ",len=" << attr->nla_len
+            << std::endl;
           void* data = nla_data( attr );
           switch ( attr->nla_type ) {
-            case IFLA_STATS:
-              //std::cout << "        IFLA_STATS size=" << attr->nla_len << std::endl;
-              break;
             case IFLA_IFNAME:
               std::cout << "        IFLA_IFNAME=" << (char*)nla_data(attr) << std::endl;
               break;
-            case IFLA_STATS64:
-              memcpy( &stats64, (struct rtnl_link_stats64*)nla_data(attr), sizeof( struct rtnl_link_stats64 ) );
-              std::cout << "        IFLA_STATS64 rx=" << stats64.rx_packets << std::endl;
+            default:
+              std::cout << "        " << attr->nla_type << " size=" << attr->nla_len << std::endl;
               break;
           }
           attr = nla_next(attr, &remaining);
@@ -153,16 +376,6 @@ void decode( struct nl_msg* msg ) {
 
     hdr = nlmsg_next(hdr, &length);
   }
-
-}
-
-int interface::cbCmd_Msg_Valid(struct nl_msg* msg, void* arg) {
-  interface* self = reinterpret_cast<interface*>( arg );
-  std::cout << "interface::cbCmd_Msg_Valid: " << std::endl;
-
-  decode( msg );
-
-  return NL_OK;
 }
 
 int interface::cbCmd_Msg_Finished(struct nl_msg *msg, void *arg) {
@@ -173,15 +386,6 @@ int interface::cbCmd_Msg_Finished(struct nl_msg *msg, void *arg) {
   //nlmsg_for_each(hdr, stream, length) {
           /* do something with message */
   //}
-
-  return NL_OK;
-}
-
-int interface::cbLinkEvent(struct nl_msg* msg, void* arg) {
-  interface* self = reinterpret_cast<interface*>( arg );
-  std::cout << "interface::cbLinkEvent: " << std::endl;
-
-  decode( msg );
 
   return NL_OK;
 }
@@ -277,8 +481,10 @@ void interface::cbCacheLinkEvent2(
   std::cout << std::endl;
 }
 
-interface::interface()
+interface::interface( fLinkInitial_t&& fLinkInitial, fLinkStats_t&& fLinkStats )
 : m_bPoll( false )
+ ,m_fLinkInitial( std::move( fLinkInitial ) )
+ ,m_fLinkStats( std::move( fLinkStats ) )
 {
 
   int status;
@@ -333,7 +539,7 @@ interface::interface()
 
   // ==== single message, with first message being link list
 
-  if ( true ) { // initial message testing
+  if ( true ) {
     m_nl_sock_cmd = nl_socket_alloc();
     if ( nullptr == m_nl_sock_cmd ) {
       throw std::runtime_error( "no netlink socket - cmd" );
@@ -341,7 +547,7 @@ interface::interface()
     // auto ack set by default
     //void nl_socket_enable_auto_ack(struct nl_sock *sk);
     //void nl_socket_disable_auto_ack(struct nl_sock *sk);
-    status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Valid, this);
+    status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkInitial, this);
     status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_FINISH, NL_CB_CUSTOM, &cbCmd_Msg_Finished, this);
     status = nl_connect(m_nl_sock_cmd, NETLINK_ROUTE);
     status = nl_socket_set_nonblocking(m_nl_sock_cmd); // poll returns immediately
@@ -365,7 +571,7 @@ interface::interface()
       throw std::runtime_error( "no statistics socket" );
     }
 
-    status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Valid, this);
+    status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkDelta, this);
     status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_FINISH, NL_CB_CUSTOM, &cbCmd_Msg_Finished, this);
     status = nl_connect( m_nl_sock_statistics, NETLINK_ROUTE);
 
@@ -427,7 +633,7 @@ interface::interface()
     }
 
     nl_socket_disable_seq_check(m_nl_sock_event);
-    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbLinkEvent, this);
+    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkDelta, this);
     status = nl_connect(m_nl_sock_event, NETLINK_ROUTE);
     status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
     status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_LINK, 0);

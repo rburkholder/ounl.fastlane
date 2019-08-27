@@ -13,6 +13,7 @@
 // reason for existence:
 //   expose the shared resources to each app via the server instance in the environment
 
+#include <map>
 #include <thread>
 
 //#include <boost/asio/ip/tcp.hpp>
@@ -63,6 +64,17 @@ private:
   std::unique_ptr<Load> m_pBpfSockStats;
 
   interface m_interface;
+
+  struct link_t {
+    interface::link_t link;
+    rtnl_link_stats64 stats;
+    link_t( const interface::link_t& link_, const rtnl_link_stats64& stats_ )
+    : link( link_ ), stats( stats_ )
+    {}
+  };
+
+  using mapLink_t = std::map<int,link_t>;
+  mapLink_t m_mapLink;
 
   //ip::tcp::resolver m_resolver;
   

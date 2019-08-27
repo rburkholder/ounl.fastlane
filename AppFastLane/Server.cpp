@@ -33,7 +33,21 @@ Server::Server(
   ,const std::string &wtConfigurationFile
 )
 : Wt::WServer( argc, argv, wtConfigurationFile )
-  ,m_io_work( asio::make_work_guard( m_context ) )
+ ,m_io_work( asio::make_work_guard( m_context ) )
+ ,m_interface(
+    [this](const interface::link_t& link,const struct rtnl_link_stats64& stats){
+      mapLink_t::iterator iterMap = m_mapLink.find( link.if_index );
+      if ( m_mapLink.end() == iterMap ) {
+        m_mapLink.emplace( link.if_index, link_t( link, stats ) );
+      }
+    },
+    [this](int if_index,const struct rtnl_link_stats64& stats){
+      mapLink_t::iterator iterMap = m_mapLink.find( if_index );
+      if ( m_mapLink.end() != iterMap ) {
+        iterMap->second.stats = stats;
+      }
+    }
+   )
   //,m_resolver( m_io )
 {
 
