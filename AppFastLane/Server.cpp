@@ -35,6 +35,7 @@ Server::Server(
 : Wt::WServer( argc, argv, wtConfigurationFile )
  ,m_io_work( asio::make_work_guard( m_context ) )
  ,m_interface(
+    m_context,
     [this](const interface::link_t& link,const struct rtnl_link_stats64& stats){
       mapLink_t::iterator iterMap = m_mapLink.find( link.if_index );
       if ( m_mapLink.end() == iterMap ) {

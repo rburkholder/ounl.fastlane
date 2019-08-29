@@ -10,8 +10,10 @@
 #include <stdexcept>
 #include <iostream>
 #include <cassert>
-#include <unistd.h>
+//#include <unistd.h>
 #include <cstring>
+
+#include <boost/asio/post.hpp>
 
 #include "interface.h"
 
@@ -481,8 +483,11 @@ void interface::cbCacheLinkEvent2(
   std::cout << std::endl;
 }
 
-interface::interface( fLinkInitial_t&& fLinkInitial, fLinkStats_t&& fLinkStats )
-: m_bPoll( false )
+interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, fLinkStats_t&& fLinkStats )
+: m_ePoll( Poll::Quiescent), m_cntLoops( 10 )
+ ,m_context( context )
+ ,m_strand( m_context )
+ ,m_timer( m_context )
  ,m_fLinkInitial( std::move( fLinkInitial ) )
  ,m_fLinkStats( std::move( fLinkStats ) )
 {
@@ -644,34 +649,65 @@ interface::interface( fLinkInitial_t&& fLinkInitial, fLinkStats_t&& fLinkStats )
 
   // ==== add thread for polling on sockets
 
-  m_bPoll = true;
-  m_threadPoll = std::move( std::thread(
-    [this](){
-      struct rtgenmsg rt_hdr = {
-        .rtgen_family = AF_UNSPEC,
-      };
-      m_cntLoops = 10;
-      int status;
-      while ( m_bPoll ) {
-        status = nl_recvmsgs_default(m_nl_sock_cmd);
-        status = nl_recvmsgs_default(m_nl_sock_event);
-        usleep( 200000 );
+  m_ePoll = Poll::Running;
+  asio::post( m_strand, std::bind( &interface::Poll, this ) );
+}
 
-        //int status = nl_cache_mngr_poll(m_cache_link_mngr, 500); //  ms
-        //if ( 0 == status ) std::cout << "nl_cache_mngr_poll polling" << std::endl;
-        //if ( 0 < status ) std::cout << "poll msgs=" << status << std::endl;
-        //if ( 0 > status ) std::cout << "poll error=" << status << std::endl;
-        m_cntLoops--;
-        if ( 0 == m_cntLoops ) {
-        //  status = nl_send_simple(m_nl_sock_cache_link, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
-          status = nl_send_simple(m_nl_sock_cmd, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
-          m_cntLoops = 10;
-        }
+void interface::Poll() {
+    //int status = nl_cache_mngr_poll(m_cache_link_mngr, 500); //  ms
+    //if ( 0 == status ) std::cout << "nl_cache_mngr_poll polling" << std::endl;
+    //if ( 0 < status ) std::cout << "poll msgs=" << status << std::endl;
+    //if ( 0 > status ) std::cout << "poll error=" << status << std::endl;
+  switch ( m_ePoll ) {
+    case Poll::Quiescent:
+      break;
+    case Poll::Running:
+    {
+      m_timer.expires_after( std::chrono::milliseconds( 200 ) );
+      m_timer.async_wait(
+        [this](const boost::system::error_code& error){
+          int status;
+          if ( error || ( Poll::Stop == m_ePoll ) ) {
+            m_ePoll = Poll::Stopped;
+          }
+          else {
+
+            static struct rtgenmsg rt_hdr = {
+              .rtgen_family = AF_UNSPEC,
+            };
+
+            m_cntLoops--;
+            if ( 0 == m_cntLoops ) {
+            //  status = nl_send_simple(m_nl_sock_cache_link, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
+              status = nl_send_simple(m_nl_sock_cmd, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
+              m_cntLoops = 10;
+            }
+
+            asio::post( m_strand, std::bind( &interface::Poll, this ) );
+          }
+          status = nl_recvmsgs_default(m_nl_sock_event);
+          status = nl_recvmsgs_default(m_nl_sock_cmd);
+        });
       }
-    } ) );
+      break;
+    case Poll::Stop:
+    {
+      int status;
+      status = nl_recvmsgs_default(m_nl_sock_event);
+      status = nl_recvmsgs_default(m_nl_sock_cmd);
+      m_ePoll = Poll::Stopped;
+      }
+      break;
+    case Poll::Stopped:
+      break;
+  }
 }
 
 interface::~interface() {
+
+  m_ePoll = Poll::Stop;
+  m_timer.cancel();
+  while ( Poll::Stopped != m_ePoll );  // will this run forever?
 
   //nl_cache_mngr_free( m_cache_link_mngr );
   //nl_cache_free( m_cache_link );
@@ -682,10 +718,6 @@ interface::~interface() {
   nl_close( m_nl_sock_cmd );
   //nl_close( m_nl_sock_cache_link );
   //nl_close( m_nl_sock_statistics );
-
-  // put here when no time out available
-  m_bPoll = false;
-  m_threadPoll.join();
 
   nl_socket_free( m_nl_sock_event );
   nl_socket_free( m_nl_sock_cmd );

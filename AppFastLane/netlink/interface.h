@@ -10,13 +10,18 @@
 #ifndef APPFASTLANE_NETLINK_INTERFACE_H_
 #define APPFASTLANE_NETLINK_INTERFACE_H_
 
-#include <thread>
 #include <functional>
+
+#include <boost/asio/io_context_strand.hpp>
+#include <boost/asio/steady_timer.hpp>
+//#include <boost/asio/io_context.hpp>
 
 extern "C" {
 #include <netlink/socket.h>
 #include <netlink/cache.h>
 }
+
+namespace asio = boost::asio;
 
 class interface {
 public:
@@ -32,8 +37,7 @@ public:
     bool bLoopback;
     bool bEthernet;
     link_t()
-    : if_name( nullptr ), qdisk( nullptr )
-     ,if_index {}
+    : if_index {}
      ,bLowerUp( false ), bUp( false ), bRunning( false )
      ,bLoopback( false ), bEthernet( false )
     {
@@ -47,11 +51,13 @@ public:
   using fLinkInitial_t = std::function<void(const link_t&,const struct rtnl_link_stats64&)>;
   using fLinkStats_t   = std::function<void(int,const struct rtnl_link_stats64&)>;
 
-  interface( fLinkInitial_t&&, fLinkStats_t&& );
+  interface( asio::io_context&, fLinkInitial_t&&, fLinkStats_t&& );
   ~interface();
 
 protected:
 private:
+
+  enum class Poll { Quiescent, Running, Stop, Stopped } m_ePoll;
 
   fLinkInitial_t m_fLinkInitial;
   fLinkStats_t   m_fLinkStats;
@@ -78,8 +84,11 @@ private:
       struct nl_object* old_obj, struct nl_object* new_obj,
       uint64_t, int, void* );
 
-  bool m_bPoll;
-  std::thread m_threadPoll;
+  void Poll();
+  //bool m_bPoll;
+  asio::io_context& m_context;
+  asio::io_context::strand m_strand;
+  asio::steady_timer m_timer;
   size_t m_cntLoops;
 };
 
