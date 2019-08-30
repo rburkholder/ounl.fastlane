@@ -56,16 +56,20 @@ void AppFastLane::BuildInitialPage() {
 
   // ==== container: main
   Wt::WContainerWidget* pContainer = root()->addWidget( std::make_unique<Wt::WContainerWidget>() );
+  pContainer->setStyleClass( "classInterfaceGroup" );
 
   // ==== container: interface list
   Wt::WContainerWidget* pContainerInterfaceList = pContainer->addWidget( std::make_unique<Wt::WContainerWidget>() );
+  pContainerInterfaceList->setStyleClass( "classInterfaceList" );
   m_pServer->GetInterfaceList(
     [this,pContainerInterfaceList](int if_index,const std::string& sInterfaceName){
       m_pServer->post(
         sessionId(),
         [this,pContainerInterfaceList,if_index,sInterfaceName_=sInterfaceName](){
           Wt::WContainerWidget* pContainerInterfaceItem = pContainerInterfaceList->addWidget( std::make_unique<Wt::WContainerWidget>() );
+          pContainerInterfaceItem->setStyleClass( "classInterfaceItem" );
           Wt::WText* pInterfaceName = pContainerInterfaceItem->addWidget( std::make_unique<Wt::WText>( sInterfaceName_ ) );
+          pInterfaceName->setStyleClass( "classInterfaceName" );
         }
         );
     }
@@ -73,6 +77,7 @@ void AppFastLane::BuildInitialPage() {
 
   // ==== container: chart
   Wt::Chart::WCartesianChart* pChart = pContainer->addWidget( std::make_unique<Wt::Chart::WCartesianChart>() );
+  pChart->setStyleClass( "classInterfaceChart" );
 
   m_pModel = std::make_shared<Model1>();
   //m_pModel = std::make_shared<Wt::WStandardItemModel>(0, 4);

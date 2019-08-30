@@ -657,4 +657,21 @@ a:active {
   background-color: var(--color-invalid-1);
 }
 
+.classInterfaceGroup {
+  display: block;
+}
+
+.classInterfaceList {
+  display: inline-block;
+  padding: 50px;
+  vertical-align: text-bottom;
+  }
+
+.classInterfaceName {
+}
+
+.classInterfaceChart {
+  display: inline-block;
+  padding: 50px;
+  }
 /** anything below is deprecated and to be removed **/
