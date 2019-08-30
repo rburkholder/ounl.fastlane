@@ -8,6 +8,7 @@
 #include <boost/log/trivial.hpp>
 
 #include <Wt/Chart/WCartesianChart.h>
+#include <Wt/WText.h>
 
 #include "AppFastLane.h"
 
@@ -53,7 +54,25 @@ void AppFastLane::BuildInitialPage() {
 
   root()->clear();
 
+  // ==== container: main
   Wt::WContainerWidget* pContainer = root()->addWidget( std::make_unique<Wt::WContainerWidget>() );
+
+  // ==== container: interface list
+  Wt::WContainerWidget* pContainerInterfaceList = pContainer->addWidget( std::make_unique<Wt::WContainerWidget>() );
+  m_pServer->GetInterfaceList(
+    [this,pContainerInterfaceList](int if_index,const std::string& sInterfaceName){
+      m_pServer->post(
+        sessionId(),
+        [this,pContainerInterfaceList,if_index,sInterfaceName_=sInterfaceName](){
+          Wt::WContainerWidget* pContainerInterfaceItem = pContainerInterfaceList->addWidget( std::make_unique<Wt::WContainerWidget>() );
+          Wt::WText* pInterfaceName = pContainerInterfaceItem->addWidget( std::make_unique<Wt::WText>( sInterfaceName_ ) );
+        }
+        );
+    }
+    );
+
+  // ==== container: chart
+  Wt::Chart::WCartesianChart* pChart = pContainer->addWidget( std::make_unique<Wt::Chart::WCartesianChart>() );
 
   m_pModel = std::make_shared<Model1>();
   //m_pModel = std::make_shared<Wt::WStandardItemModel>(0, 4);
@@ -63,8 +82,6 @@ void AppFastLane::BuildInitialPage() {
   m_pModel->setHeaderData( 3, Wt::Orientation::Horizontal, Wt::WString("ICMP"), Wt::ItemDataRole::Display );
 
   m_pServer->m_signalStats.connect( this, &AppFastLane::UpdateModel );
-
-  Wt::Chart::WCartesianChart* pChart = pContainer->addWidget( std::make_unique<Wt::Chart::WCartesianChart>() );
 
   pChart->setModel( m_pModel );
   pChart->setType( Wt::Chart::ChartType::Scatter );

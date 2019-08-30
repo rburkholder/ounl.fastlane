@@ -15,10 +15,12 @@
 
 #include <map>
 #include <thread>
+#include <functional>
 
 //#include <boost/asio/ip/tcp.hpp>
 //#include <boost/asio.hpp>
 #include <boost/asio/io_context.hpp>
+#include <boost/asio/io_context_strand.hpp>
 #include <boost/asio/executor_work_guard.hpp>
 
 #include <Wt/WServer.h>
@@ -46,6 +48,10 @@ public:
   virtual ~Server();
 
   Wt::Signal<Wt::WDateTime, long long, long long, long long> m_signalStats;
+  Wt::Signal<Wt::WDateTime, const rtnl_link_stats64&> m_signalStats64;
+
+  using fInterfaceItem_t = std::function<void(int,const std::string&)>; // if_index, if_name
+  void GetInterfaceList( fInterfaceItem_t&& );
 
 //  using vByte_t = ounl::message::vByte_t;
 //  using fCompose_t = CassandraClient::fCompose_t;
@@ -59,6 +65,7 @@ private:
 
   std::thread m_thread;
   asio::io_context m_context; // TODO:  convert to WServer::IOService
+  asio::io_context::strand m_strand; // sync various operations on interface lists and statistics
   asio::executor_work_guard<asio::io_context::executor_type> m_io_work;
 
   std::unique_ptr<Load> m_pBpfSockStats;

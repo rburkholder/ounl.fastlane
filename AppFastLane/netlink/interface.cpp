@@ -182,7 +182,7 @@ int interface::cbCmd_Msg_LinkInitial( struct nl_msg* msg, void* arg ) {
       attr = nla_next(attr, &remaining);
     };
 
-    if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( linkInfo, stats64 );
+    if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( std::move( linkInfo ), std::move( stats64 ) );
 
     hdr = nlmsg_next(hdr, &length);
   }
@@ -266,7 +266,7 @@ int interface::cbCmd_Msg_LinkDelta( struct nl_msg* msg, void* arg ) {
           attr = nla_next(attr, &remaining);
         };
 
-        if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( linkInfo, stats64 );
+        if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( std::move( linkInfo ), std::move( stats64 ) );
         break;
       case RTM_DELLINK:
         // TODO: test what happens when loopback created in namespace
@@ -315,7 +315,7 @@ int interface::cbCmd_Msg_LinkStats( struct nl_msg* msg, void* arg ) {
         // need to copy because structure is 4 byte aligned, not 8 byte aligned
         memcpy( &stats64, (struct rtnl_link_stats64*)(nla_data( attr )), sizeof( struct rtnl_link_stats64 ) );
         if ( nullptr != self->m_fLinkStats ) {
-          self->m_fLinkStats( ifinfo->ifi_index, stats64 );
+          self->m_fLinkStats( ifinfo->ifi_index, std::move( stats64 ) );
         }
         break;
       }
@@ -562,9 +562,6 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
     };
     status = nl_send_simple(m_nl_sock_cmd, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
 
-    //status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
-    //status = nl_recvmsgs_default(m_nl_sock_cmd);
-
   }
 
   // ==== single message, with attribute to request only interface statistics
@@ -643,8 +640,6 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
     status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
     status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_LINK, 0);
 
-    //while (1)
-      //status = nl_recvmsgs_default(m_nl_sock_event);
   }
 
   // ==== add thread for polling on sockets

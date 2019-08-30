@@ -15,6 +15,8 @@
 #include <boost/program_options.hpp>
 namespace po = boost::program_options;
 
+#include <boost/asio/post.hpp>
+
 //#include <OunlMessage/Append.h>
 //#include <OunlMessage/Message.h>
 //#include <OunlMessage/buffer_on_strand.h>
@@ -33,23 +35,38 @@ Server::Server(
   ,const std::string &wtConfigurationFile
 )
 : Wt::WServer( argc, argv, wtConfigurationFile )
+ ,m_strand( m_context )
  ,m_io_work( asio::make_work_guard( m_context ) )
  ,m_interface(
     m_context,
-    [this](const interface::link_t& link,const struct rtnl_link_stats64& stats){
-      mapLink_t::iterator iterMap = m_mapLink.find( link.if_index );
-      if ( m_mapLink.end() == iterMap ) {
-        m_mapLink.emplace( link.if_index, link_t( link, stats ) );
-      }
+    [this](const interface::link_t&& link,const struct rtnl_link_stats64&& stats){ // function to receive intial interface list and statistics
+      asio::post(
+        m_strand,
+        [this,link_=std::move(link), stats_=std::move(stats)](){
+          mapLink_t::iterator iterMap = m_mapLink.find( link_.if_index );
+          if ( m_mapLink.end() == iterMap ) {
+            m_mapLink.emplace( link_.if_index, link_t( link_, stats_ ) );
+          }
+          else {
+            //  but but but this shouldn't happen
+            iterMap->second.stats = stats_;
+          }
+        } );
     },
-    [this](int if_index,const struct rtnl_link_stats64& stats){
-      mapLink_t::iterator iterMap = m_mapLink.find( if_index );
-      if ( m_mapLink.end() != iterMap ) {
-        iterMap->second.stats = stats;
-      }
+    [this](const int if_index,const struct rtnl_link_stats64& stats){ // function to receive periodic statistics
+      asio::post(
+        m_strand,
+        [this,if_index,stats_=std::move(stats)](){
+          mapLink_t::iterator iterMap = m_mapLink.find( if_index );
+          if ( m_mapLink.end() != iterMap ) {
+            iterMap->second.stats = stats_;
+          }
+          else {
+            // some sort of error?
+          }
+        });
     }
    )
-  //,m_resolver( m_io )
 {
 
   try {
@@ -59,7 +76,7 @@ Server::Server(
 
     po::options_description config( "server" );
     config.add_options()
-      ( sNameSyslogServer.c_str(),        po::value<std::string>(), "syslog server ip dns" )
+      ( sNameSyslogServer.c_str(), po::value<std::string>(), "syslog server ip dns" )
       ;
     po::variables_map vm;
 
@@ -108,6 +125,18 @@ Server::~Server() {
   m_io_work.reset();
   m_thread.join();
 }
+
+void Server::GetInterfaceList( fInterfaceItem_t&& fInterfaceItem ) {
+  asio::post(
+    m_strand,
+    [this,fInterfaceItem_=std::move(fInterfaceItem)](){ // thread resistant access to interface map
+      for ( const mapLink_t::value_type& vt: m_mapLink ) {
+        fInterfaceItem_( vt.first, vt.second.link.if_name );
+      }
+    }
+    );
+}
+
 /*
 void Server::ComposeSendAwaitReply( fCompose_t&& fCompose, fReply_t&& fReply) {
   m_pcc->ComposeSendAwaitReply(

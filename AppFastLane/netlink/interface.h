@@ -48,8 +48,8 @@ public:
      // TODO: need to test that all members have been assigned
   }; // link_t
 
-  using fLinkInitial_t = std::function<void(const link_t&,const struct rtnl_link_stats64&)>;
-  using fLinkStats_t   = std::function<void(int,const struct rtnl_link_stats64&)>;
+  using fLinkInitial_t = std::function<void(const link_t&&,const struct rtnl_link_stats64&&)>;
+  using fLinkStats_t   = std::function<void(const int,const struct rtnl_link_stats64&&)>;
 
   interface( asio::io_context&, fLinkInitial_t&&, fLinkStats_t&& );
   ~interface();
