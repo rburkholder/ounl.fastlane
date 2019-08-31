@@ -13,6 +13,8 @@
 //#include <unistd.h>
 #include <cstring>
 
+#include <boost/log/trivial.hpp>
+
 #include <boost/asio/post.hpp>
 
 #include "interface.h"
@@ -190,9 +192,10 @@ int interface::cbCmd_Msg_LinkInitial( struct nl_msg* msg, void* arg ) {
   return NL_OK;
 }
 
+// TODO: redo this, and remove a bunch of link code?
 int interface::cbCmd_Msg_LinkDelta( struct nl_msg* msg, void* arg ) {
   interface* self = reinterpret_cast<interface*>( arg );
-  std::cout << "interface::cbCmd_Msg_LinkDelta: " << std::endl;
+  BOOST_LOG_TRIVIAL(trace) << "interface::cbCmd_Msg_LinkDelta: ";
 
   struct nlmsghdr *hdr;
   hdr = nlmsg_hdr( msg );
@@ -266,7 +269,8 @@ int interface::cbCmd_Msg_LinkDelta( struct nl_msg* msg, void* arg ) {
           attr = nla_next(attr, &remaining);
         };
 
-        if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( std::move( linkInfo ), std::move( stats64 ) );
+        //if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( std::move( linkInfo ), std::move( stats64 ) );
+        if ( nullptr != self->m_fLinkStats ) self->m_fLinkStats( ifinfo->ifi_index, stats64 );
         break;
       case RTM_DELLINK:
         // TODO: test what happens when loopback created in namespace
@@ -315,7 +319,7 @@ int interface::cbCmd_Msg_LinkStats( struct nl_msg* msg, void* arg ) {
         // need to copy because structure is 4 byte aligned, not 8 byte aligned
         memcpy( &stats64, (struct rtnl_link_stats64*)(nla_data( attr )), sizeof( struct rtnl_link_stats64 ) );
         if ( nullptr != self->m_fLinkStats ) {
-          self->m_fLinkStats( ifinfo->ifi_index, std::move( stats64 ) );
+          self->m_fLinkStats( ifinfo->ifi_index, stats64 );
         }
         break;
       }
@@ -356,18 +360,18 @@ void interface::decodeLinkDiag( struct nl_msg* msg ) {
         remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
 
         while (nla_ok(attr, remaining)) {
-          std::cout
+          BOOST_LOG_TRIVIAL(trace)
             << "      attr: "
             << "type=" << attr->nla_type
             << ",len=" << attr->nla_len
-            << std::endl;
+            ;
           void* data = nla_data( attr );
           switch ( attr->nla_type ) {
             case IFLA_IFNAME:
-              std::cout << "        IFLA_IFNAME=" << (char*)nla_data(attr) << std::endl;
+              BOOST_LOG_TRIVIAL(trace) << "        IFLA_IFNAME=" << (char*)nla_data(attr);
               break;
             default:
-              std::cout << "        " << attr->nla_type << " size=" << attr->nla_len << std::endl;
+              BOOST_LOG_TRIVIAL(trace) << "        " << attr->nla_type << " size=" << attr->nla_len;
               break;
           }
           attr = nla_next(attr, &remaining);
@@ -382,7 +386,7 @@ void interface::decodeLinkDiag( struct nl_msg* msg ) {
 
 int interface::cbCmd_Msg_Finished(struct nl_msg *msg, void *arg) {
   interface* self = reinterpret_cast<interface*>( arg );
-  std::cout << "interface::cbCmd_Msg_Finished" << std::endl;
+  //BOOST_LOG_TRIVIAL(trace) << "interface::cbCmd_Msg_Finished" << std::endl;
 
   struct nlmsghdr *hdr;
   //nlmsg_for_each(hdr, stream, length) {
@@ -405,9 +409,8 @@ void interface::cbCacheLinkInitial( struct nl_object* obj, void* data ) {
 
   int ifindex = rtnl_link_get_ifindex( link );
   sz = rtnl_link_get_name( link );
-  std::cout << ifindex << "=" << sz;
+  BOOST_LOG_TRIVIAL(trace) << ifindex << "=" << sz;
 
-  std::cout << std::endl;
 }
 
 void interface::cbCacheLinkEvent1(
@@ -426,9 +429,7 @@ void interface::cbCacheLinkEvent1(
   std::cout <<",new type='" << szType << "'";
   struct rtnl_link* link = (struct rtnl_link*)obj;
   int ifindex = rtnl_link_get_ifindex( link );
-  std::cout << ",index=" << ifindex;
-
-  std::cout << std::endl;
+  BOOST_LOG_TRIVIAL(trace) << ",index=" << ifindex;
 
 }
 
@@ -440,25 +441,25 @@ void interface::cbCacheLinkEvent2(
     void* data
 ) {
   interface* self = reinterpret_cast<interface*>( data );
-  std::cout << "interface::cbCacheLinkEvent2 action: ";
+  //BOOST_LOG_TRIVIAL(trace) <<"interface::cbCacheLinkEvent2 action: ";
   switch ( action ) {
     case NL_ACT_UNSPEC:
-      std::cout << "unspec";
+      //std::cout << "unspec";
       break;
     case NL_ACT_NEW:
-      std::cout << "new";
+      //std::cout << "new";
       break;
     case NL_ACT_DEL:
-      std::cout << "del";
+      //std::cout << "del";
       break;
     case NL_ACT_GET:
-      std::cout << "get";
+      //std::cout << "get";
       break;
     case NL_ACT_SET:
-      std::cout << "set";
+      //std::cout << "set";
       break;
     case NL_ACT_CHANGE:
-      std::cout << "change";
+      //std::cout << "change";
       break;
   }
 
@@ -466,21 +467,21 @@ void interface::cbCacheLinkEvent2(
 
   if ( nullptr != old_obj ) {
     szType = nl_object_get_type(old_obj);
-    std::cout <<",old type='" << szType << "'";
+    //std::cout <<",old type='" << szType << "'";
     struct rtnl_link* link = (struct rtnl_link*)old_obj;
     int ifindex = rtnl_link_get_ifindex( link );
-    std::cout << ",index=" << ifindex;
+    //std::cout << ",index=" << ifindex;
   }
 
   if ( nullptr != new_obj ) {
     szType = nl_object_get_type(new_obj);
-    std::cout <<",new type='" << szType << "'";
+    //std::cout <<",new type='" << szType << "'";
     struct rtnl_link* link = (struct rtnl_link*)new_obj;
     int ifindex = rtnl_link_get_ifindex( link );
-    std::cout << ",index=" << ifindex;
+    //std::cout << ",index=" << ifindex;
   }
 
-  std::cout << std::endl;
+  //std::cout << std::endl;
 }
 
 interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, fLinkStats_t&& fLinkStats )
@@ -513,7 +514,7 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
     //status = nl_cache_mngr_alloc(nullptr, NETLINK_ROUTE, NL_AUTO_PROVIDE, &m_cache_link_mngr);
     status = nl_cache_mngr_alloc(m_nl_sock_cache_link, NETLINK_ROUTE, NL_AUTO_PROVIDE, &m_cache_link_mngr);
     if ( 0 > status ) {
-      std::cout << "nl_cache_mngr_alloc error " << status << std::endl;
+      BOOST_LOG_TRIVIAL(trace) << "nl_cache_mngr_alloc error " << status << std::endl;
       // TODO: need to free the socket
       throw std::runtime_error( "nl_cache_mngr_alloc failed" );
     }
@@ -526,14 +527,14 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
 
     status = nl_cache_mngr_add_cache_v2( m_cache_link_mngr, m_cache_link, &interface::cbCacheLinkEvent2, this );
     if ( 0 > status ) {
-      std::cout << "nl_cache_mngr_add_cache_v2 error " << status << std::endl;
+      BOOST_LOG_TRIVIAL(trace) << "nl_cache_mngr_add_cache_v2 error " << status << std::endl;
       // TODO: need to free socket and cache
       throw std::runtime_error( "nl_cache_mngr_add_cache_v2 failed" );
     }
 
     status = nl_cache_mngr_add(m_cache_link_mngr, "route/link", &interface::cbCacheLinkEvent1, this, &m_cache_link);
     if ( 0 > status ) {
-      std::cout << "nl_cache_mngr_add error " << status << std::endl;
+      BOOST_LOG_TRIVIAL(trace) << "nl_cache_mngr_add error " << status << std::endl;
       throw std::runtime_error( "nl_cache_mngr_add failed" );
     }
 
@@ -615,7 +616,7 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
 
     status = nl_send_auto( m_nl_sock_statistics, msg );
     if ( 0 > status ) {
-      std::cout << "m_nl_sock_statistics error: " << status << std::endl;
+      BOOST_LOG_TRIVIAL(trace) << "m_nl_sock_statistics error: " << status << std::endl;
       throw std::runtime_error( "m_nl_sock_statistics error" );
     }
 

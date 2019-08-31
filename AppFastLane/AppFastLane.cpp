@@ -70,6 +70,30 @@ void AppFastLane::BuildInitialPage() {
           pContainerInterfaceItem->setStyleClass( "classInterfaceItem" );
           Wt::WText* pInterfaceName = pContainerInterfaceItem->addWidget( std::make_unique<Wt::WText>( sInterfaceName_ ) );
           pInterfaceName->setStyleClass( "classInterfaceName" );
+          pInterfaceName->clicked().connect(
+            [this,if_index](){
+              BOOST_LOG_TRIVIAL(info) << sessionId() << ",if_index clicked=" << if_index;
+              if ( m_connectionStats64.connected() ) m_connectionStats64.disconnect();
+              m_pServer->InterfaceStats64(
+                if_index,
+                [this](const rtnl_link_stats64& stats){
+                  m_pServer->post(
+                    sessionId(),
+                    [this,stats](){
+                      m_pModel->insertRow( m_nRows );
+                      m_pModel->setData( m_pModel->index( m_nRows, 0 ), std::any( Wt::WDateTime::currentDateTime() ) );
+                      m_pModel->setData( m_pModel->index( m_nRows, 1 ), std::any( (long long)stats.rx_bytes ) );
+                      m_pModel->setData( m_pModel->index( m_nRows, 2 ), std::any( (long long)stats.tx_bytes ) );
+                      m_pModel->setData( m_pModel->index( m_nRows, 3 ), std::any( (long long)stats.multicast ) );
+                      m_nRows++;
+                      triggerUpdate();
+                    }
+                    );
+                },
+                [this](boost::signals2::connection connection){
+                  m_connectionStats64 = connection;
+                } );
+            });
         }
         );
     }
@@ -112,6 +136,7 @@ void AppFastLane::BuildInitialPage() {
 }
 
 void AppFastLane::UpdateModel( Wt::WDateTime dt, long long tcp, long long udp, long long icmp ) {
+  /*
   m_pServer->post(
     sessionId(),
     [this,dt, tcp, udp, icmp](){
@@ -124,4 +149,5 @@ void AppFastLane::UpdateModel( Wt::WDateTime dt, long long tcp, long long udp, l
       m_nRows++;
       triggerUpdate();
     });
+    */
 }

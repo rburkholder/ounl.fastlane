@@ -39,27 +39,93 @@ Server::Server(
  ,m_io_work( asio::make_work_guard( m_context ) )
  ,m_interface(
     m_context,
-    [this](const interface::link_t&& link,const struct rtnl_link_stats64&& stats){ // function to receive intial interface list and statistics
+    [this](const interface::link_t&& link,const struct rtnl_link_stats64& stats){ // function to receive initial interface list and statistics
+      //BOOST_LOG_TRIVIAL(trace) << "initial on index=" << link.if_index;
       asio::post(
         m_strand,
-        [this,link_=std::move(link), stats_=std::move(stats)](){
+        [this,link_=std::move(link), stats](){
           mapLink_t::iterator iterMap = m_mapLink.find( link_.if_index );
           if ( m_mapLink.end() == iterMap ) {
-            m_mapLink.emplace( link_.if_index, link_t( link_, stats_ ) );
+            m_mapLink.emplace( link_.if_index, link_t( link_, stats ) );
           }
           else {
-            //  but but but this shouldn't happen
-            iterMap->second.stats = stats_;
+            //  but but but this shouldn't happen, it does, need to fix interface.cpp
+            //iterMap->second.stats = stats_;
+            //iterMap->second.signalStats64( stats_ ); // doing diffs instead
+            rtnl_link_stats64& prev( iterMap->second.stats );
+            if ( 0 != iterMap->second.signalStats64.num_slots() ) {
+              rtnl_link_stats64 diff;
+              // TODO: may emit signal per attribute instead?
+              // TODO: turn this into macro
+              diff.rx_packets          = stats.rx_packets          - prev.rx_packets;
+              diff.tx_packets          = stats.tx_packets          - prev.tx_packets;
+              diff.rx_bytes            = stats.rx_bytes            - prev.rx_bytes;
+              diff.tx_bytes            = stats.tx_bytes            - prev.tx_bytes;
+              diff.rx_errors           = stats.rx_errors           - prev.rx_errors;
+              diff.tx_errors           = stats.tx_errors           - prev.tx_errors;
+              diff.rx_dropped          = stats.rx_dropped          - prev.rx_dropped;
+              diff.tx_dropped          = stats.tx_dropped          - prev.tx_dropped;
+              diff.multicast           = stats.multicast           - prev.multicast;
+              diff.collisions          = stats.collisions          - prev.collisions;
+              diff.rx_length_errors    = stats.rx_length_errors    - prev.rx_length_errors;
+              diff.rx_over_errors      = stats.rx_over_errors      - prev.rx_over_errors;
+              diff.rx_crc_errors       = stats.rx_crc_errors       - prev.rx_crc_errors;
+              diff.rx_frame_errors     = stats.rx_frame_errors     - prev.rx_frame_errors;
+              diff.rx_fifo_errors      = stats.rx_fifo_errors      - prev.rx_fifo_errors;
+              diff.rx_missed_errors    = stats.rx_missed_errors    - prev.rx_missed_errors;
+              diff.tx_aborted_errors   = stats.tx_aborted_errors   - prev.tx_aborted_errors;
+              diff.tx_carrier_errors   = stats.tx_carrier_errors   - prev.tx_carrier_errors;
+              diff.tx_fifo_errors      = stats.tx_fifo_errors      - prev.tx_fifo_errors;
+              diff.tx_heartbeat_errors = stats.tx_heartbeat_errors - prev.tx_heartbeat_errors;
+              diff.tx_window_errors    = stats.tx_window_errors    - prev.tx_window_errors;
+              diff.rx_compressed       = stats.rx_compressed       - prev.rx_compressed;
+              diff.tx_compressed       = stats.tx_compressed       - prev.tx_compressed;
+              diff.rx_nohandler        = stats.rx_nohandler        - prev.rx_nohandler;
+              iterMap->second.signalStats64( diff );
+            }
+            prev = stats;
           }
         } );
     },
     [this](const int if_index,const struct rtnl_link_stats64& stats){ // function to receive periodic statistics
+      BOOST_LOG_TRIVIAL(trace) << "periodic on index=" << if_index;
       asio::post(
         m_strand,
-        [this,if_index,stats_=std::move(stats)](){
+        [this,if_index,stats](){
           mapLink_t::iterator iterMap = m_mapLink.find( if_index );
           if ( m_mapLink.end() != iterMap ) {
-            iterMap->second.stats = stats_;
+            rtnl_link_stats64& prev( iterMap->second.stats );
+            if ( 0 != iterMap->second.signalStats64.num_slots() ) {
+              rtnl_link_stats64 diff;
+              // TODO: may emit signal per attribute instead?
+              // TODO: turn this into macro
+              diff.rx_packets          = stats.rx_packets          - prev.rx_packets;
+              diff.tx_packets          = stats.tx_packets          - prev.tx_packets;
+              diff.rx_bytes            = stats.rx_bytes            - prev.rx_bytes;
+              diff.tx_bytes            = stats.tx_bytes            - prev.tx_bytes;
+              diff.rx_errors           = stats.rx_errors           - prev.rx_errors;
+              diff.tx_errors           = stats.tx_errors           - prev.tx_errors;
+              diff.rx_dropped          = stats.rx_dropped          - prev.rx_dropped;
+              diff.tx_dropped          = stats.tx_dropped          - prev.tx_dropped;
+              diff.multicast           = stats.multicast           - prev.multicast;
+              diff.collisions          = stats.collisions          - prev.collisions;
+              diff.rx_length_errors    = stats.rx_length_errors    - prev.rx_length_errors;
+              diff.rx_over_errors      = stats.rx_over_errors      - prev.rx_over_errors;
+              diff.rx_crc_errors       = stats.rx_crc_errors       - prev.rx_crc_errors;
+              diff.rx_frame_errors     = stats.rx_frame_errors     - prev.rx_frame_errors;
+              diff.rx_fifo_errors      = stats.rx_fifo_errors      - prev.rx_fifo_errors;
+              diff.rx_missed_errors    = stats.rx_missed_errors    - prev.rx_missed_errors;
+              diff.tx_aborted_errors   = stats.tx_aborted_errors   - prev.tx_aborted_errors;
+              diff.tx_carrier_errors   = stats.tx_carrier_errors   - prev.tx_carrier_errors;
+              diff.tx_fifo_errors      = stats.tx_fifo_errors      - prev.tx_fifo_errors;
+              diff.tx_heartbeat_errors = stats.tx_heartbeat_errors - prev.tx_heartbeat_errors;
+              diff.tx_window_errors    = stats.tx_window_errors    - prev.tx_window_errors;
+              diff.rx_compressed       = stats.rx_compressed       - prev.rx_compressed;
+              diff.tx_compressed       = stats.tx_compressed       - prev.tx_compressed;
+              diff.rx_nohandler        = stats.rx_nohandler        - prev.rx_nohandler;
+              iterMap->second.signalStats64( diff );
+            }
+            prev = stats;
           }
           else {
             // some sort of error?
@@ -132,6 +198,19 @@ void Server::GetInterfaceList( fInterfaceItem_t&& fInterfaceItem ) {
     [this,fInterfaceItem_=std::move(fInterfaceItem)](){ // thread resistant access to interface map
       for ( const mapLink_t::value_type& vt: m_mapLink ) {
         fInterfaceItem_( vt.first, vt.second.link.if_name );
+      }
+    }
+    );
+}
+
+void Server::InterfaceStats64( int if_index, slotStats64_t slot, fInterfaceStats64Connection&& f ) {
+  asio::post(
+    m_strand,
+    [this,if_index,slot_=std::move(slot),f_=std::move(f)](){
+      mapLink_t::iterator iterLink = m_mapLink.find( if_index );
+      if ( m_mapLink.end() != iterLink ) {
+        boost::signals2::connection connection = iterLink->second.signalStats64.connect( slot_ );
+        f_( connection );
       }
     }
     );

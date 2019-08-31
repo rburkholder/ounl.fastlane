@@ -27,12 +27,16 @@ public:
   virtual void initialize( void ); // Initializes the application, post-construction.
   virtual void finalize( void ); // Finalizes the application, pre-destruction.
 
+protected:
 private:
 
   using pModel_t = std::shared_ptr<Model1>;
 
   const Wt::WEnvironment& m_environment;
   Server* m_pServer; // object managed by wt
+
+  //Server::slotStats64_t m_slotStats64;
+  boost::signals2::connection m_connectionStats64; // current interface of statistics
 
   pModel_t m_pModel;
   int m_nRows;

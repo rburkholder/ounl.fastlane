@@ -23,6 +23,8 @@
 #include <boost/asio/io_context_strand.hpp>
 #include <boost/asio/executor_work_guard.hpp>
 
+#include <boost/signals2.hpp>
+
 #include <Wt/WServer.h>
 #include <Wt/WSignal.h>
 
@@ -48,10 +50,17 @@ public:
   virtual ~Server();
 
   Wt::Signal<Wt::WDateTime, long long, long long, long long> m_signalStats;
-  Wt::Signal<Wt::WDateTime, const rtnl_link_stats64&> m_signalStats64;
+
+  //using signalStats64_t = boost::signals2::signal<void(Wt::WDateTime, const rtnl_link_stats64&)>;
+  using signalStats64_t = boost::signals2::signal<void(const rtnl_link_stats64&)>;
+  using slotStats64_t = signalStats64_t::slot_type;
+  signalStats64_t m_signalStats64;
 
   using fInterfaceItem_t = std::function<void(int,const std::string&)>; // if_index, if_name
   void GetInterfaceList( fInterfaceItem_t&& );
+
+  using fInterfaceStats64Connection = std::function<void(boost::signals2::connection)>;
+  void InterfaceStats64( int if_index, slotStats64_t, fInterfaceStats64Connection&& );
 
 //  using vByte_t = ounl::message::vByte_t;
 //  using fCompose_t = CassandraClient::fCompose_t;
@@ -75,6 +84,7 @@ private:
   struct link_t {
     interface::link_t link;
     rtnl_link_stats64 stats;
+    signalStats64_t signalStats64;
     link_t( const interface::link_t& link_, const rtnl_link_stats64& stats_ )
     : link( link_ ), stats( stats_ )
     {}
