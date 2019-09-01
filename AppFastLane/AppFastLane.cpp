@@ -61,9 +61,9 @@ void AppFastLane::BuildInitialPage() {
   // ==== container: interface list
   Wt::WContainerWidget* pContainerInterfaceList = pContainer->addWidget( std::make_unique<Wt::WContainerWidget>() );
   pContainerInterfaceList->setStyleClass( "classInterfaceList" );
-  m_pServer->GetInterfaceList(
-    [this,pContainerInterfaceList](int if_index,const std::string& sInterfaceName){
-      m_pServer->post(
+  m_pServer->GetInterfaceList( // call into WServer, but comes back in different thread
+    [this,pContainerInterfaceList](int if_index,const std::string& sInterfaceName){ // process each interface index and name
+      m_pServer->post( // WServer space into WApplication space
         sessionId(),
         [this,pContainerInterfaceList,if_index,sInterfaceName_=sInterfaceName](){
           Wt::WContainerWidget* pContainerInterfaceItem = pContainerInterfaceList->addWidget( std::make_unique<Wt::WContainerWidget>() );
@@ -71,15 +71,15 @@ void AppFastLane::BuildInitialPage() {
           Wt::WText* pInterfaceName = pContainerInterfaceItem->addWidget( std::make_unique<Wt::WText>( sInterfaceName_ ) );
           pInterfaceName->setStyleClass( "classInterfaceName" );
           pInterfaceName->clicked().connect(
-            [this,if_index](){
+            [this,if_index](){ // on clicked, in WApplication
               BOOST_LOG_TRIVIAL(info) << sessionId() << ",if_index clicked=" << if_index;
               if ( m_connectionStats64.connected() ) m_connectionStats64.disconnect();
-              m_pServer->InterfaceStats64(
+              m_pServer->InterfaceStats64( // call into WServer, but comes back in different thread
                 if_index,
-                [this](const rtnl_link_stats64& stats){
-                  m_pServer->post(
+                [this](const rtnl_link_stats64& stats){ // WServer threading into WApplication space
+                  m_pServer->post( // pass from WServer into WApplication
                     sessionId(),
-                    [this,stats](){
+                    [this,stats](){ // in WApplication space:
                       m_pModel->insertRow( m_nRows );
                       m_pModel->setData( m_pModel->index( m_nRows, 0 ), std::any( Wt::WDateTime::currentDateTime() ) );
                       m_pModel->setData( m_pModel->index( m_nRows, 1 ), std::any( (long long)stats.rx_bytes ) );
