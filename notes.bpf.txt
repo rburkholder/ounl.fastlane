@@ -1,0 +1,321 @@
+Linux Observability with BPF
+
+-=-=-=-=-=-
+
+BPF_PROG_TYPE_SOCKET_FILTER 
+
+attach a BPF program to a raw socket, you get access to all the packets processed by that socket. Socket filter programs don’t allow you to modify the contents of those packets, or to change the destination for those packets, they only give you access to they for Observability purposes.
+
+BPF_PROG_TYPE_XDP
+
+ return XDP_PASS from your XDP program, which means that the packet should be passed to the next subsystem in the kernel. You can also return XDP_DROP, which means that the kernel should ignore this packet completely and do nothing else with it. And you can also return XDP_TX, which means that the packet should be forwarded back to the Network Interface Card(NIC) that received the packet in the first place.
+
+BPF_PROG_TYPE_CGROUP_SKB
+
+what to do with a network packet before it’s delivered to a process in the Cgroup. Any packet that the kernel tries to deliver to any process in the same Cgroup will pass through one of these filters.
+
+behavior is very similar to BPF_PROG_TYPE_SOCKET_FILTER programs. The only main difference is that BPF_PROG_TYPE_CGROUP_SKB programs are attached to all processes within a control group, rather than a specific processes, this behavior applies to current and future sockets created in the given Cgroup. 
+
+BPF_PROG_TYPE_CGROUP_SOCK
+
+they allow you to control what happens when a process opens a new socket. They are defined with the type BPF_PROG_TYPE_CGROUP_SOCK. This is useful to provide security and access control over groups of programs that can open sockets without having to restrict capabilities per process individually.
+
+BPF_PROG_TYPE_SOCK_OPS.
+
+your function call receives an argument called "op" that represents the operation that the kernel is about to execute with the socket connection, so you can know at which point the program is invoked in the connection’s lifecycle. With this information at hand, you can access data like network IPs and connection ports, and modify the connection options to set timeouts and alter the Round-trip delay time for a given packet.
+
+BPF_PROG_TYPE_SK_SKB 
+
+programs give you access to socket maps and socket redirects. Socket maps allow you to keep references to several sockets. When you have this references you can use special helpers to redirect incoming packet from a socket to a different socket. This is very interesting when you want to implement loadbalancing capabilities with BPF. By keeping track of several sockets, you can forward network packets between them without leaving the kernel-space.
+
+BPF_PROG_TYPE_CGROUP_SOCK_ADDR
+
+ manipulate the IPs and port numbers that user-space programs are attached to when they are control by specific Cgroups. There are use cases when you system uses several IPs when you want to ensure that a specific set of user-space programs use the same IP and port. 
+
+BPF_PROG_TYPE_FLOW_DISSECTOR 
+
+hook logic in the flow dissector path.  allows to control the flow of the packet using different classification methods.
+
+===========================
+
+The bpf system call allows you to debug the verifier’s checks if you’re interested in seeing how your programs are analyzed. When you load a program with this system call, you can set several attributes that will make the verifier to print its operation log:
+
+union bpf_attr attr = {
+  .prog_type = type,
+  .insns     = ptr_to_u64(insns),
+  .insn_cnt  = insn_cnt,
+  .license   = ptr_to_u64(license),
+  .log_buf   = ptr_to_u64(bpf_log_buf),
+  .log_size  = LOG_BUF_SIZE,
+  .log_level = 1,
+};
+bpf(BPF_PROG_LOAD, &attr, sizeof(attr));
+
+====================
+
+BPF Type Format (BTF)
+
+The BPF Type format is a collection of metadata structures that enhances the debug information for BPF programs, maps, and functions. BTF includes source information, so tools like BPFTool, which we’ll talk about in Chapter 5, can show you a much richer interpretation of BPF data. This metadata is stored in the binary program under a special “.BFT” metadata section. BTF information is very useful to make your programs easier to debug, but it increases the size of binary files significantly because it needs to keep track of type information for everything declared in your program. The BPF Verifier also uses this information to ensure that the structure types defined by your program are correct.
+
+BTF is used exclusively to annotate C types. BPF compilers like LLVM know how to include that information for you, so you don’t have to go through the cumbersome task of adding that information to each structure. However, in some cases, the toolchain still needs some annotations to enhance your programs. In future chapters, we’ll describe how those annotations come into play, and how tools like BPFTool display this information.
+
+=============
+
+BPF Tail Calls
+
+BPF programs can call other BPF programs by using tail calls. This is a powerful feature because it allows you to assamble more complex programs by combining smaller BPF functions together. Kernel versions prior to 5.2 have a hard limit in the number of machine instructions that a BPF program can generate. This limit was set to 4096 to ensure that programs can terminate in a reasonable amount of time. However, as people built more complex BPF programs, they needed a way to extend the instruction limit imposed by the Kernel, here is where tail calls come into place. The instruction limit increases to 1 million instructions starting in the version 5.2 of the Kernel. Tail call nesting is also limited, to 32 calls in this case, that means that you can combine up to 32 programs in a chain to generate a more complex solution to your problems.
+
+=============  3 mechanisms
+
+BPF_MAP_CREATE
+
+union bpf_attr {
+  struct {
+    __u32 map_type;     /* one of the values from bpf_map_type */
+    __u32 key_size;     /* size of the keys, in bytes */
+    __u32 value_size;   /* size of the values, in bytes */
+    __u32 max_entries;  /* maximum number of entries in the map */
+    __u32 map_flags;    /* flags to modify how we create the map */
+  };
+}
+
+// syscall example:
+
+union bpf_attr my_map {
+  .map_type = BPF_MAP_TYPE_HASH,
+  .key_size = sizeof(int),
+  .value_size = sizeof(int),
+  .max_entries = 100,
+  .map_flags = BPF_F_NO_PREALLOC,
+};
+
+int fd = bpf(BPF_MAP_CREATE, &my_map, sizeof(my_map));
+
+----------------------- helper call to simplify the above:
+int fd;
+fd = bpf_create_map(BPF_MAP_TYPE_HASH, sizeof(int), sizeof(int), 100, BPF_F_NO_PREALOC);
+
+------------
+define in in code:
+
+struct bpf_map_def SEC("maps") my_map = {
+      .type        = BPF_MAP_TYPE_HASH,
+      .key_size    = sizeof(int),
+      .value_size  = sizeof(int),
+      .max_entries = 100,
+      .map_flags   = BPF_F_NO_PREALLOC,
+};
+
+When you define a map in this way, you’re using what’s called a section attribute, in this case SEC("maps"). This macro tells the kernel that this structure is a BPF Map and it should be created accordingly.
+
+You might have noticed that we don’t have the file descriptor identifier associated with the map in this new example. In this case, the kernel uses a global variable called map_data to store information about the maps in your program. This variable is an array of structures, and it’s ordered by the order in which you specified each map in your code. For example, if the previous map was the first one specified in your code, you’d get the file descriptor identifier from the first element in the array:
+
+fd = map_data[0].fd;
+
+=============
+
+The kernel helpers provide the function _bpf_map_update_elem_ for this purpose. This function’s signature is different if you load it from bpf/bpf_helpers.h, inside the program running on the kernel, than if you load it from tools/lib/bpf/bpf.h, inside the program running in user-space. This is because you can access maps directly when you’re working in the kernel, but you reference them with file descriptors when you’re working in user-space. It’s behavior is also slightly different, the code running on the kernel can access the map in memory directly, and it will be able to update elements atomically in place. However, the code running in user-space has to send the message to the kernel, which copies the value supplied before updating the map, this make update operation not atomic. This function returns 0 when the operation succeeds, and it  returns a negative number when it fails. In case of failure, the global variable errno is populated with the failure cause.
+
+BPF_ANY for 0, BPF_NOEXIST for 1, and BPF_EXIST for 2.
+
+0: you’re telling the kernel that you want to update the element if it exists, or it should create the element in the map if it doesn’t exist.
+1: you’re telling the kernel to create the element only when it doesn’t exist.
+2: the kernel will only update the element when it exists.
+
+kernel version, address of map directly:
+result = bpf_map_update_elem(&my_map, &key, &value, BPF_ANY);
+
+userland version, file descriptor:
+result = bpf_map_update_elem(map_data[0].fd, &key, &value, BPF_ANY);
+
+--------------- read
+
+kernel side:
+result = bpf_map_lookup_elem(&my_map, &key, &value);
+
+user side:
+result = bpf_map_lookup_elem(map_data[0].fd, &key, &value);
+
+--------------- delete
+
+kernel:
+result = bpf_map_delete_element(&my_map, &key);
+
+user:
+result = bpf_map_delete_element(map_data[0].fd, &key);
+
+--------------- find
+
+bpf_map_get_next_key
+this instruction is only available for programs running on user-space.
+
+second argument key is the identifier you’re looking for, and the third one, next_key will be the next key in the map. We prefer to call the first argument lookup_key, . When you call this helper, BPF tries to find the element in this map which key you pass as the lookup key, then, it sets the next_key argument with the adjacent key in the map. So if you want to know which key comes after the key 1, you need to set 1 as your lookup key, and if the map has an adjacent key to this one, BPF will set it as the value for the next_key argument.
+
+If you want to print all the values in the map, you can use bpf_map_get_next_key with a lookup key that doesn’t exist in the map. That will make BPF to start from the beginning of the map:
+
+int next_key, lookup_key;
+lookup_key = -1;
+while(bpf_map_get_next_key(map_data[0].fd, &lookup_key, &next_key) == 0) {
+ printf("The next key in the map is: '%d'\n", next_key);
+ lookup_key = next_key;
+}
+
+When bpf_map_get_next_key arrives at the end of the map, the value returned is a negative number and the errno variable is set to ENOENT.
+
+NOTE: If another part of your program deletes an element from the map while you’re looping over the values, bpf_map_get_next_key will start over when it tries to find the next value for the element’s key that it was removed. 
+
+--------------- delete
+
+bpf_map_lookup_and_delete_elem
+search for a given key in the map and deletes the element from it. At the same time, it writes the value of the element in a variable for your program to use. This function will come handy when you use queue and stack maps
+
+============= concurrent access
+
+Spin Locks work only on Array, Hash, and Cgroup storage maps.
+
+one to lock at element, bpf_spin_lock, and one to unlock that same element bpf_spin_unlock
+
+BPF Spin Lock introduces a new flag that user-space programs can use to change the state of that lock, that flag is called BPF_F_LOCK.
+
+struct concurrent_element {
+  struct bpf_spin_lock semaphore;  
+  int count;
+  }
+  
+struct bpf_map_def SEC("maps") concurrent_map = {
+  .type        = BPF_MAP_TYPE_HASH,
+  .key_size    = sizeof(int),
+  .value_size  = sizeof(struct concurrent_element),
+  .max_entries = 100,
+};
+
+BPF_ANNOTATE_KV_PAIR(concurrent_map, int, struct concurrent_element);  
+
+
+int bpf_program(struct pt_regs *ctx) {
+  int key = 0;
+  struct concurrent_element init_value = {};
+  struct concurrent_element *read_value;
+
+  bpf_map_create_elem(&concurrent_map, &key, &init_value, BPF_NOEXIST);
+
+  read_value = bpf_map_lookup_elem(&concurrent_map, &key);
+  bpf_spin_lock(&read_value->semaphore);
+  read_value->count += 100;
+  bpf_spin_unlock(&read_value->semaphore);
+}
+
+---------- user
+
+we can hold the reference to an element in our concurrent map by using the flag BPF_F_LOCK. You can use this flag with the helper functions bpf_map_update_elem and bpf_map_lookup_elem_flags. This flag allows you to update elements in place without having to worry about data races.
+
+=============
+
+BPF_MAP_TYPE_HASH  - ip address lookup as example
+BPF_MAP_TYPE_ARRAY - store global variables with a predefined assignment rule, map_update_elem is not atomic,  use the kernel’s built-in function __sync_fetch_and_add to perform atomic operations
+BPF_MAP_TYPE_PROG_ARRAY - use this type of maps to store references to BPF programs using their file descriptor identifiers. In conjunction with the helper bpf_tail_call, this map allows you to jump between programs
+
+BPF_MAP_TYPE_PERF_EVENT_ARRAY - store perf_events data in a buffer ring that communicates BPF programs with user-space programs in real time.
+
+BPF_MAP_TYPE_LRU_HASH
+BPF_MAP_TYPE_LRU_PERCPU_HASH
+
+BPF_MAP_TYPE_LPM_TRIE - key sizes to be multiple of 8, and in a range from 8 to 2048
+
+BPF_MAP_TYPE_DEVMAP - build a virtual map of ports that point to specific network devices and then redirect packets by using the helper bpf_redirect_map.
+BPF_MAP_TYPE_CPUMAP - assign specific CPUs to network stacks for scalability and isolation purposes.
+BPF_MAP_TYPE_XSKMAP - stores references to open sockets, useful for forwarding packets, between sockets in this case.
+
+BPF_MAP_TYPE_SOCKMAP and BPF_MAP_TYPE_SOCKHASH are two specialized maps that store references to open sockets in the kernel. Like the previous maps we saw, this type of maps are used in conjuntion with the helper bpf_redirect_map to forward socket buffers from the current XDP program to a different socket.
+
+BPF_MAP_TYPE_QUEUE -  use bpf_map_lookup_elem, this map will always look for the oldest element in the map
+
+BPF_MAP_TYPE_STACK - Stack maps use a Last In First Out(LIFO) storage to keep the elements in the map
+
+
+
+====== writing a program in place (tail call):
+
+int key = 1;
+struct bpf_insn prog[] = {
+  BPF_MOV64_IMM(BPF_REG_0, 0), // assign r0 = 0
+  BPF_EXIT_INSN(),  // return r0
+};
+
+prog_fd = bpf_prog_load(BPF_PROG_TYPE_KPROBE, prog, sizeof(prog), "GPL");
+bpf_map_update_elem(&programs, &key, &prog_fd, BPF_ANY);
+
+SEC("kprobe/seccomp_phase1")
+int bpf_kprobe_program(struct pt_regs *ctx) {
+  int key = 1;
+  /* dispatch into next BPF program */
+  bpf_tail_call(ctx, &programs, &key);
+
+  /* fall through when the program descriptor is not in the map */
+  char fmt[] = "missing program in prog_array map\n";
+  bpf_trace_printk(fmt, sizeof(fmt));
+  return 0;
+}
+
+You can chain up to 32 nested calls using bpf_tail_call and BPF_MAP_TYPE_PROG_ARRAY. 
+
+=========== /sys/fs/bpf. map pinning
+
+mount -t bpf /sys/fs/bpf /sys/fs/bpf
+
+============ XDP - ingress only
+
+Native XDP - default mode, part of networking driver's early receive path
+Offloaded XDP - directly offloaded into the NIC 
+Generic XDP - write and run XDP programs without having the capabilities of Native or Offloaded XDP, used, for example on veth devices
+
+Drop (XDP_DROP)
+Forward (XDP_TX) - bouncing the received packet-page back out the same NIC it arrived on.
+Redirect (XDP_REDIRECT) - transmit the XDP packet through another NIC or into a BPF cpumap
+Pass (XDP_PASS) - passes the packet to the normal network stack for processing, via a) normal receive, or b) GRO
+Code Error (XDP_ABORTED) - denotes an eBPF program error and results in the packet getting dropped
+
+========================
+
+load function load_bpf_file is able to recognize some specific ELF section headers and can associate them to the respective program types,
+
+	bool is_socket = strncmp(event, "socket", 6) == 0;
+	bool is_kprobe = strncmp(event, "kprobe/", 7) == 0;
+	bool is_kretprobe = strncmp(event, "kretprobe/", 10) == 0;
+	bool is_tracepoint = strncmp(event, "tracepoint/", 11) == 0;
+	bool is_raw_tracepoint = strncmp(event, "raw_tracepoint/", 15) == 0;
+	bool is_xdp = strncmp(event, "xdp", 3) == 0;
+	bool is_perf_event = strncmp(event, "perf_event", 10) == 0;
+	bool is_cgroup_skb = strncmp(event, "cgroup/skb", 10) == 0;
+	bool is_cgroup_sk = strncmp(event, "cgroup/sock", 11) == 0;
+	bool is_sockops = strncmp(event, "sockops", 7) == 0;
+	bool is_sk_skb = strncmp(event, "sk_skb", 6) == 0;
+	bool is_sk_msg = strncmp(event, "sk_msg", 6) == 0;
+	
+		if (is_socket) {
+		prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	} else if (is_kprobe || is_kretprobe) {
+		prog_type = BPF_PROG_TYPE_KPROBE;
+	} else if (is_tracepoint) {
+		prog_type = BPF_PROG_TYPE_TRACEPOINT;
+	} else if (is_raw_tracepoint) {
+		prog_type = BPF_PROG_TYPE_RAW_TRACEPOINT;
+	} else if (is_xdp) {
+		prog_type = BPF_PROG_TYPE_XDP;
+	} else if (is_perf_event) {
+		prog_type = BPF_PROG_TYPE_PERF_EVENT;
+	} else if (is_cgroup_skb) {
+		prog_type = BPF_PROG_TYPE_CGROUP_SKB;
+	} else if (is_cgroup_sk) {
+		prog_type = BPF_PROG_TYPE_CGROUP_SOCK;
+	} else if (is_sockops) {
+		prog_type = BPF_PROG_TYPE_SOCK_OPS;
+	} else if (is_sk_skb) {
+		prog_type = BPF_PROG_TYPE_SK_SKB;
+	} else if (is_sk_msg) {
+		prog_type = BPF_PROG_TYPE_SK_MSG;
+	} else {
+		printf("Unknown event '%s'\n", event);
+		return -1;
+	}
+
