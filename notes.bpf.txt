@@ -271,7 +271,7 @@ Generic XDP - write and run XDP programs without having the capabilities of Nati
 
 Drop (XDP_DROP)
 Forward (XDP_TX) - bouncing the received packet-page back out the same NIC it arrived on.
-Redirect (XDP_REDIRECT) - transmit the XDP packet through another NIC or into a BPF cpumap
+Redirect (XDP_REDIRECT) - transmit the XDP packet through another NIC or into a BPF cpumap - AF_XDP socket
 Pass (XDP_PASS) - passes the packet to the normal network stack for processing, via a) normal receive, or b) GRO
 Code Error (XDP_ABORTED) - denotes an eBPF program error and results in the packet getting dropped
 

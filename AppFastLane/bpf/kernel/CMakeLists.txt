@@ -15,6 +15,22 @@ target_include_directories(
   /usr/src/linux-headers-4.19.0-5-common/include
   )
   
+add_library(
+  xdp_flow OBJECT 
+  xdp_flow.c
+  )
+  
+target_include_directories(
+  xdp_flow PUBLIC
+  /usr/src/linux-4.19.39
+  /usr/src/linux-4.19.39/include/uapi
+  /usr/src/linux-4.19.39/arch/x86/indclude/uapi
+  /usr/include/x86_64-linux-gnu
+)
+
+# built to:
+# build/cmake.debug.linux.x86_64/AppFastLane/bpf/kernel/CMakeFiles/xdp_flow.dir/xdp_flow.c.o
+
 SET (CMAKE_C_COMPILER             "/usr/bin/clang")
 #SET (CMAKE_C_FLAGS                "-Wall -std=c99")
 SET (CMAKE_C_FLAGS                "-O2 -target bpf")
@@ -25,7 +41,4 @@ SET (CMAKE_C_FLAGS                "-O2 -target bpf")
 
 #SET_SOURCE_FILES_PROPERTIES( ${file_c} PROPERTIES LANGUAGE C )
   
- #sudo ln -s /usr/src/linux-4.19.39/tools /usr/local/include/tools
- #sudo ln -s /usr/src/linux-headers-4.19.0-5-common/include/uapi/ /usr/local/include/uapi
- #sudo ln -s /usr/src/linux-headers-4.19.0-5-common/include/linux /usr/local/include/linux
- # in eclipse, properties->index->refresh
+  
