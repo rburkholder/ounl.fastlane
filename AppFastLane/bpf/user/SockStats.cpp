@@ -14,7 +14,7 @@
 #include <string>
 #include <chrono>
 
-#include "Load.h"
+#include "SockStats.h"
 
 extern "C" {
 #include <linux/bpf.h>
@@ -25,7 +25,7 @@ extern "C" {
 #include <samples/bpf/bpf_load.h>
 }
 
-Load::Load( asio::io_context& context, fUpdateData_t&& fUpdateData )
+SockStats::SockStats( asio::io_context& context, fUpdateData_t&& fUpdateData )
 : m_context( context )
  ,m_bContinue( false ), m_bFinished( false ), m_bFirst( true )
  ,m_timer( m_context )
@@ -56,22 +56,22 @@ Load::Load( asio::io_context& context, fUpdateData_t&& fUpdateData )
   Start();
 }
 
-Load::~Load() {
+SockStats::~SockStats() {
   m_bContinue = false;
   m_timer.cancel();
   while( !m_bFinished );  // TODO: need to set wait_event or atomic to wait on for completion
 }
 
-void Load::Start() {
+void SockStats::Start() {
   namespace ph = std::placeholders;
 
   m_bFinished = false;
 
   m_timer.expires_after( std::chrono::milliseconds( 990) );
-  m_timer.async_wait( std::bind( &Load::UpdateStats, this, ph::_1 ) );
+  m_timer.async_wait( std::bind( &SockStats::UpdateStats, this, ph::_1 ) );
 }
 
-void Load::UpdateStats( const boost::system::error_code& ) {
+void SockStats::UpdateStats( const boost::system::error_code& ) {
 
   long long tcp_cnt, udp_cnt, icmp_cnt;
   int key;

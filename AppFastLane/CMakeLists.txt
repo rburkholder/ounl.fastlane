@@ -34,7 +34,7 @@ set(
     AppFastLane.h
     Server.h
     Model1.h
-    bpf/user/Load.h
+    bpf/user/SockStats.h
     netlink/interface.h
   )
 
@@ -55,7 +55,7 @@ set(
     Server.cpp
     main.cpp
     Model1.cpp
-    bpf/user/Load.cpp
+    bpf/user/SockStats.cpp
     netlink/interface.cpp
   )
 
@@ -73,7 +73,7 @@ target_include_directories(
     ".."
     ${SRC_LINUX}
     ${SRC_LINUX}/include/uapi
-#    ${SRC_LINUX}/include
+    ${SRC_LINUX}/include
     # asm/linkage.h
     ${SRC_LINUX}/arch/x86/include/uapi
     # unistd_64_x32.h

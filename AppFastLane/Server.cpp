@@ -175,7 +175,7 @@ Server::Server(
 
   m_thread = std::move( std::thread( [this ]{ m_context.run(); }) );
 
-  m_pBpfSockStats = std::make_unique<Load>(
+  m_pBpfSockStats = std::make_unique<SockStats>(
     m_context,
     [this](long long tcp, long long udp, long long icmp ){
 

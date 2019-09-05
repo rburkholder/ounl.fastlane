@@ -17,13 +17,13 @@
 
 namespace asio = boost::asio;
 
-class Load {
+class SockStats {
 public:
 
   using fUpdateData_t = std::function<void(long long, long long, long long)>;
 
-  Load( asio::io_context&, fUpdateData_t&& );
-  ~Load();
+  SockStats( asio::io_context&, fUpdateData_t&& );
+  ~SockStats();
 protected:
 private:
 

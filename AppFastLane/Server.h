@@ -28,7 +28,7 @@
 #include <Wt/WServer.h>
 #include <Wt/WSignal.h>
 
-#include "bpf/user/Load.h"
+#include "bpf/user/SockStats.h"
 #include "netlink/interface.h"
 
 //#include "CassandraClient.h"
@@ -77,7 +77,7 @@ private:
   asio::io_context::strand m_strand; // sync various operations on interface lists and statistics
   asio::executor_work_guard<asio::io_context::executor_type> m_io_work;
 
-  std::unique_ptr<Load> m_pBpfSockStats;
+  std::unique_ptr<SockStats> m_pBpfSockStats;
 
   interface m_interface;
 
