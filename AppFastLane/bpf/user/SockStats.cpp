@@ -1,5 +1,5 @@
 /*
- * Load.cpp
+ * File:      SockStats.cpp
  * Project:   AppFastLane
  * Author:    raymond@burkholder.net
  * copyright: 2019 Raymond Burkholder
@@ -39,17 +39,17 @@ SockStats::SockStats( asio::io_context& context, fUpdateData_t&& fUpdateData )
 
   static const std::string sFile( "bpf/sock_stats.o" );
   if ( 0 != load_bpf_file( (char*)sFile.c_str() ) ) {
-    std::string sError( "Load::Load" );
+    std::string sError( "SockStats::SockStats load_bpf_file" );
     sError += bpf_log_buf;
     throw std::runtime_error( sError );
   }
 
  //read_trace_pipe();   , std::chrono::steady_clock::now() + std::chrono::milliseconds( 990)
 
-  int sock = open_raw_sock("lo");
+  int sock = open_raw_sock("lo");  // reason for '#include <samples/bpf/sock_example.h>'
 
   if ( 0 != setsockopt( sock, SOL_SOCKET, SO_ATTACH_BPF, prog_fd, sizeof( prog_fd[0] ) ) ) {
-    throw std::runtime_error( "Load::Load setsockopt" );
+    throw std::runtime_error( "SockStats::SockStats setsockopt" );
   }
 
   m_bContinue = true;
