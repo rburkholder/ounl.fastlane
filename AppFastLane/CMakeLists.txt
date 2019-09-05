@@ -34,6 +34,7 @@ set(
     AppFastLane.h
     Server.h
     Model1.h
+    bpf/user/RawSocket.h
     bpf/user/SockStats.h
     netlink/interface.h
   )
@@ -55,6 +56,7 @@ set(
     Server.cpp
     main.cpp
     Model1.cpp
+    bpf/user/RawSocket.cpp
     bpf/user/SockStats.cpp
     netlink/interface.cpp
   )
