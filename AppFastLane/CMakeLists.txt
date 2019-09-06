@@ -36,6 +36,7 @@ set(
     Model1.h
     bpf/user/RawSocket.h
     bpf/user/SockStats.h
+    bpf/user/XdpFlow.h
     netlink/interface.h
   )
 
@@ -58,6 +59,7 @@ set(
     Model1.cpp
     bpf/user/RawSocket.cpp
     bpf/user/SockStats.cpp
+    bpf/user/XdpFlow.cpp
     netlink/interface.cpp
   )
 

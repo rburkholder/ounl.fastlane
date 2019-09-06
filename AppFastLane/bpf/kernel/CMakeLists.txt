@@ -16,19 +16,23 @@ target_include_directories(
   )
   
 add_library(
-  xdp_flow OBJECT 
+  xdp_flow OBJECT
+  ../map_mac.h 
   xdp_flow.c
   )
   
 target_include_directories(
   xdp_flow PUBLIC
-  /usr/src/linux-4.19.39
   /usr/src/linux-4.19.39/include/uapi
   /usr/src/linux-4.19.39/include
-  /usr/src/linux-4.19.39/arch/x86/indclude/uapi
-  /usr/include/x86_64-linux-gnu
+  /usr/src/linux-4.19.39/arch/x86/include/uapi
+  /usr/src/linux-4.19.39
+#  /usr/include/x86_64-linux-gnu
 )
 
+target_compile_definitions(xdp_flow PUBLIC __x86_64__ )
+
+# 
 # built to:
 # build/cmake.debug.linux.x86_64/AppFastLane/bpf/kernel/CMakeFiles/xdp_flow.dir/xdp_flow.c.o
 

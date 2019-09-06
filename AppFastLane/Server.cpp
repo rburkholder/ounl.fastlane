@@ -175,6 +175,7 @@ Server::Server(
 
   m_thread = std::move( std::thread( [this ]{ m_context.run(); }) );
 
+  /*
   m_pBpfSockStats = std::make_unique<SockStats>(
     m_context,
     [this](long long tcp, long long udp, long long icmp ){
@@ -184,10 +185,14 @@ Server::Server(
 
     }
     );
+    */
+
+  m_pBpfXdpFlow = std::make_unique<XdpFlow>( m_context );
 }
 
 Server::~Server() {
-  m_pBpfSockStats.reset();
+  //m_pBpfSockStats.reset();
+  m_pBpfXdpFlow.reset();
   m_io_work.reset();
   m_thread.join();
 }
