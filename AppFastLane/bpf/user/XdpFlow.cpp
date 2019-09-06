@@ -12,6 +12,8 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <oneunified/HexDump.h>
+
 #include "XdpFlow.h"
 
 extern "C" {
@@ -80,24 +82,12 @@ void XdpFlow::UpdateStats( const boost::system::error_code& ) {
         << "  "
         << mac_key_next.if_index
         << ","
-        << std::hex
-          <<        (uint16_t)mac_key_next.mac_dst[ 0 ]
-          << ":" << (uint16_t)mac_key_next.mac_dst[ 1 ]
-          << ":" << (uint16_t)mac_key_next.mac_dst[ 2 ]
-          << ":" << (uint16_t)mac_key_next.mac_dst[ 3 ]
-          << ":" << (uint16_t)mac_key_next.mac_dst[ 4 ]
-          << ":" << (uint16_t)mac_key_next.mac_dst[ 5 ]
-          << ","
-          <<        (uint16_t)mac_key_next.mac_src[ 0 ]
-          << ":" << (uint16_t)mac_key_next.mac_src[ 1 ]
-          << ":" << (uint16_t)mac_key_next.mac_src[ 2 ]
-          << ":" << (uint16_t)mac_key_next.mac_src[ 3 ]
-          << ":" << (uint16_t)mac_key_next.mac_src[ 4 ]
-          << ":" << (uint16_t)mac_key_next.mac_src[ 5 ]
-        << std::dec
-          << "," << mac_value.flags
-          << "," << mac_value.bytes
-          << "," << mac_value.packets
+        << HexDump<unsigned char*>( mac_key_next.mac_dst, mac_key_next.mac_dst + 6, ':' )
+        << ","
+        << HexDump<unsigned char*>( mac_key_next.mac_src, mac_key_next.mac_src + 6, ':' )
+        << "," << mac_value.flags
+        << "," << mac_value.bytes
+        << "," << mac_value.packets
         << std::endl;
     }
     status1 = bpf_map_get_next_key( map_fd[0], &mac_key_next, &mac_key_next);
