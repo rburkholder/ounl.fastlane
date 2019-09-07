@@ -15,6 +15,13 @@ struct bpf_map_def SEC("maps") map_mac = {
   .max_entries = 1024,
 };
 
+struct bpf_map_def SEC("maps") map_protocol = {
+  .type = BPF_MAP_TYPE_HASH,
+  .key_size = sizeof(__u16),
+  .value_size = sizeof(__u64),
+  .max_entries = 128,
+};
+
 SEC("xdp")
 int xdp_flow( struct xdp_md *ctx ) {
 
@@ -44,7 +51,7 @@ int xdp_flow( struct xdp_md *ctx ) {
   if ( 0 == map_mac_value_ptr ) { // key was not found
 
     struct map_mac_value_def map_mac_value;
-    __builtin_memset( &map_mac_value, 0, sizeof( struct map_mac_value_def ) );
+    //__builtin_memset( &map_mac_value, 0, sizeof( struct map_mac_value_def ) );
 
     map_mac_value.packets = 1;
     map_mac_value.bytes = nBytes;
@@ -57,6 +64,16 @@ int xdp_flow( struct xdp_md *ctx ) {
     map_mac_value_ptr->bytes += nBytes;
     map_mac_value_ptr->packets += 1;
     map_mac_value_ptr->flags = 1;
+  }
+
+  __u64 one = 1;
+  //__u16 protocol = eth->h_proto;
+  __u64* protocol_value_ptr = bpf_map_lookup_elem( &map_protocol, &eth->h_proto );
+  if ( 0 == protocol_value_ptr ) {
+    bpf_map_update_elem( &map_protocol, &eth->h_proto, &one, BPF_ANY );
+  }
+  else {
+    *protocol_value_ptr += 1;
   }
 
   return XDP_PASS;

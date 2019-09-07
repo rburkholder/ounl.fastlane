@@ -12,6 +12,8 @@
 #include <iostream>
 #include <stdexcept>
 
+#include <boost/endian/arithmetic.hpp>
+
 #include <oneunified/HexDump.h>
 
 #include "XdpFlow.h"
@@ -72,7 +74,7 @@ void XdpFlow::UpdateStats( const boost::system::error_code& ) {
 
   struct map_mac_value_def mac_value;
 
-  std:: cout << "Emit Map: " << std::endl;
+  std::cout << "Emit map: mac addresses: " << std::endl;
 
   int status1 = bpf_map_get_next_key( map_fd[0], &mac_key_blank, &mac_key_next);
   while ( 0 == status1 ) {
@@ -91,6 +93,21 @@ void XdpFlow::UpdateStats( const boost::system::error_code& ) {
         << std::endl;
     }
     status1 = bpf_map_get_next_key( map_fd[0], &mac_key_next, &mac_key_next);
+  }
+
+  std::cout << "Emit map: protocol types: " << std::endl;
+
+  boost::endian::big_uint16_t ethertype_blank;
+  boost::endian::big_uint16_t ethertype_next;
+  uint64_t count;
+
+  status1 = bpf_map_get_next_key( map_fd[1], &ethertype_blank, &ethertype_next );
+  while ( 0 == status1 ) {
+    int status2 = bpf_map_lookup_elem( map_fd[1], &ethertype_next, &count );
+    if ( 0 == status2 ) {
+      std::cout << std::hex << "0x" << ethertype_next << "=" << std::dec << count << std::endl;
+    }
+    status1 = bpf_map_get_next_key( map_fd[1], &ethertype_next, &ethertype_next );
   }
 
   if ( 0 != m_nLoops ) {
