@@ -33,7 +33,7 @@ extern "C" {
 // https://developers.redhat.com/blog/2018/12/17/using-xdp-maps-rhel8/
 // https://github.com/pabeni/xdp_walkthrough_examples/tree/master/sample_3_1
 
-#include "../map_mac.h"
+#include <AppFastLane/bpf/map_common.h>
 
 XdpFlow::XdpFlow( asio::io_context& context )
 : m_context( context )

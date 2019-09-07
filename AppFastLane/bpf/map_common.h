@@ -1,5 +1,5 @@
 /*
- * File:      map_mac.h
+ * File:      map_common.h
  * Project:   AppFastLane
  * Author:    raymond@burkholder.net
  * copyright: 2019 Raymond Burkholder

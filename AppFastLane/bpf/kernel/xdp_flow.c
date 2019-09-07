@@ -16,7 +16,7 @@
 #include <uapi/linux/ipv6.h>
 #include <tools/testing/selftests/bpf/bpf_helpers.h>
 
-#include "../map_mac.h"
+#include "../map_common.h"
 
 #define SEC(NAME) __attribute__((section(NAME), used))
 
