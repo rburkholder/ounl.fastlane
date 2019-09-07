@@ -26,6 +26,7 @@ private:
 
   int m_mapMac_fd;
   int m_mapProtocol_fd;
+  int m_mapIpv4_fd;
 
   asio::io_context& m_context;
   asio::steady_timer m_timer;

@@ -70,13 +70,21 @@ XdpFlow::XdpFlow( asio::io_context& context )
   if (m_mapMac_fd < 0)
     error(1, errno, "can't get map_mac fd");
 
-  struct bpf_map* mapProtocol = bpf_object__find_map_by_name(objProgram, "map_protocol");
+  struct bpf_map* mapProtocol = bpf_object__find_map_by_name(objProgram, "map_protocol_stats");
   if (!mapProtocol)
-    error(1, errno, "can't load map_protocol");
+    error(1, errno, "can't load map_protocol_stats");
   m_mapProtocol_fd = bpf_map__fd(mapProtocol);
   if (m_mapProtocol_fd < 0)
-    error(1, errno, "can't get map_protocol fd");
+    error(1, errno, "can't get map_protocol_stats fd");
 
+  struct bpf_map* mapIpv4 = bpf_object__find_map_by_name(objProgram, "map_ipv4");
+  if (!mapIpv4)
+    error(1, errno, "can't load map_ipv4_stats");
+  m_mapIpv4_fd = bpf_map__fd(mapIpv4);
+  if (m_mapIpv4_fd < 0)
+    error(1, errno, "can't get map_ipv4_stats fd");
+
+  // TODO: load for all interfaces, will need to be supplied with if_indexes
   int status = bpf_set_link_xdp_fd(m_if_index, prog_fd, 0 );
   std::cout << "*** bpf_set_link_xdp_fd status: " << status << std::endl;
 
@@ -100,6 +108,16 @@ void XdpFlow::Start() {
   m_timer.async_wait( std::bind( &XdpFlow::UpdateStats, this, ph::_1 ) );
 }
 
+void emit( __u32 addr ) {
+  unsigned char* p( (unsigned char*)&addr );
+  std::cout
+    << (uint16_t)p[0]
+    << "." << (uint16_t)p[1]
+    << "." << (uint16_t)p[2]
+    << "." << (uint16_t)p[3]
+    ;
+}
+
 void XdpFlow::UpdateStats( const boost::system::error_code& ) {
 
   struct map_mac_key_def mac_key_blank;
@@ -121,11 +139,11 @@ void XdpFlow::UpdateStats( const boost::system::error_code& ) {
         << HexDump<unsigned char*>( mac_key_next.mac_dst, mac_key_next.mac_dst + 6, ':' )
         << ","
         << HexDump<unsigned char*>( mac_key_next.mac_src, mac_key_next.mac_src + 6, ':' )
-        << "," << mac_value.flags
+//        << "," << mac_value.flags
         << "," << mac_value.bytes
         << "," << mac_value.packets
         << std::endl;
-      mac_value.flags = 0;
+//      mac_value.flags = 0;
       // status2 = bpf_map_update_elem( map_fd[0], &mac_key_next, &mac_value, BPF_EXIST );
     }
     status1 = bpf_map_get_next_key( m_mapMac_fd, &mac_key_next, &mac_key_next);
@@ -133,8 +151,8 @@ void XdpFlow::UpdateStats( const boost::system::error_code& ) {
 
   std::cout << "Emit map: protocol types: " << std::endl;
 
-  boost::endian::big_uint16_t ethertype_blank;
-  boost::endian::big_uint16_t ethertype_next;
+  boost::endian::big_uint16_t ethertype_blank {};
+  boost::endian::big_uint16_t ethertype_next {};
   uint64_t count;
 
   status1 = bpf_map_get_next_key( m_mapProtocol_fd, &ethertype_blank, &ethertype_next );
@@ -145,6 +163,31 @@ void XdpFlow::UpdateStats( const boost::system::error_code& ) {
     }
     status1 = bpf_map_get_next_key( m_mapProtocol_fd, &ethertype_next, &ethertype_next );
   }
+
+  struct map_ipv4_key_def map_ipv4_key_blank = {
+    .if_index = 0,
+    .dst = 0,
+    .src = 0
+  };
+  struct map_ipv4_key_def map_ipv4_key_next = map_ipv4_key_blank;
+  struct map_stats_def map_stats;
+
+  status1 = bpf_map_get_next_key( m_mapIpv4_fd, &map_ipv4_key_blank, &map_ipv4_key_next );
+  while ( 0 == status1 ) {
+    int status2 = bpf_map_lookup_elem( m_mapIpv4_fd, &map_ipv4_key_next, &map_stats );
+    if ( 0 == status2 ) {
+      std::cout << map_ipv4_key_next.if_index << ",";
+      emit( map_ipv4_key_next.dst );
+      std::cout << ",";
+      emit( map_ipv4_key_next.src );
+      std::cout
+        << "," << map_stats.packets
+        << "," << map_stats.bytes
+        << std::endl;
+    }
+    status1 = bpf_map_get_next_key( m_mapIpv4_fd, &map_ipv4_key_next, &map_ipv4_key_next );
+  }
+
 
   if ( 0 != m_nLoops ) {
     m_nLoops--;
