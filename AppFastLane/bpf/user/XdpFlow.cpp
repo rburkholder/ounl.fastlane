@@ -20,12 +20,18 @@
 
 extern "C" {
 #include <linux/bpf.h>
+#include <libbpf.h>
 #include <linux/if_link.h>
 #include <bpf/bpf.h>
 #include <unistd.h>
+#include <error.h>
 #include <arpa/inet.h>
-#include <samples/bpf/bpf_load.h>
+//#include <samples/bpf/bpf_load.h>
 }
+
+// example:
+// https://developers.redhat.com/blog/2018/12/17/using-xdp-maps-rhel8/
+// https://github.com/pabeni/xdp_walkthrough_examples/tree/master/sample_3_1
 
 #include "../map_mac.h"
 
@@ -33,18 +39,45 @@ XdpFlow::XdpFlow( asio::io_context& context )
 : m_context( context )
  ,m_timer( context )
 {
-  static const std::string sFile( "bpf/xdp_flow.o" );
-  if ( 0 != load_bpf_file( (char*)sFile.c_str() ) ) {
-    std::string sError( "XdpFlow::XdpFlow load_bpf_file" );
-    sError += bpf_log_buf;
-    throw std::runtime_error( sError );
-  }
+  std::cout << "XdpFlow start" << std::endl;
+
+  struct bpf_object *objProgram;
+  int prog_fd, map_fd;
+
+  struct bpf_prog_load_attr prog_load_attr = {
+        .file = "bpf/xdp_flow.o",
+        .prog_type = BPF_PROG_TYPE_XDP,
+  };
+
+  if (bpf_prog_load_xattr(&prog_load_attr, &objProgram, &prog_fd))
+    error(1, errno, "can't load %s", prog_load_attr.file);
+
+//  static const std::string sFile( "bpf/xdp_flow.o" );
+//  if ( 0 != load_bpf_file( (char*)sFile.c_str() ) ) {
+//    std::string sError( "XdpFlow::XdpFlow load_bpf_file" );
+//    sError += bpf_log_buf;
+//    throw std::runtime_error( sError );
+//  }
 
   //m_if_index = 1; // use lo for now
   m_if_index = 4;
   __u32 xdp_flags( XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE );
 
-  int status = bpf_set_link_xdp_fd(m_if_index, prog_fd[ 0 ], 0 );
+  struct bpf_map* mapMac = bpf_object__find_map_by_name(objProgram, "map_mac");
+  if (!mapMac)
+    error(1, errno, "can't load map_mac");
+  m_mapMac_fd = bpf_map__fd(mapMac);
+  if (m_mapMac_fd < 0)
+    error(1, errno, "can't get map_mac fd");
+
+  struct bpf_map* mapProtocol = bpf_object__find_map_by_name(objProgram, "map_protocol");
+  if (!mapProtocol)
+    error(1, errno, "can't load map_protocol");
+  m_mapProtocol_fd = bpf_map__fd(mapProtocol);
+  if (m_mapProtocol_fd < 0)
+    error(1, errno, "can't get map_protocol fd");
+
+  int status = bpf_set_link_xdp_fd(m_if_index, prog_fd, 0 );
   std::cout << "*** bpf_set_link_xdp_fd status: " << status << std::endl;
 
   m_nLoops = 10;
@@ -53,7 +86,8 @@ XdpFlow::XdpFlow( asio::io_context& context )
 }
 
 XdpFlow::~XdpFlow() {
-  //bpf_set_link_xdp_fd( m_if_index, -1, 0 );
+  std::cout << "XdpFlow stop" << std::endl;
+  bpf_set_link_xdp_fd( m_if_index, -1, 0 );
 }
 
 void XdpFlow::Start() {
@@ -76,9 +110,9 @@ void XdpFlow::UpdateStats( const boost::system::error_code& ) {
 
   std::cout << "Emit map: mac addresses: " << std::endl;
 
-  int status1 = bpf_map_get_next_key( map_fd[0], &mac_key_blank, &mac_key_next);
+  int status1 = bpf_map_get_next_key( m_mapMac_fd, &mac_key_blank, &mac_key_next);
   while ( 0 == status1 ) {
-    int status2 = bpf_map_lookup_elem( map_fd[0], &mac_key_next, &mac_value );
+    int status2 = bpf_map_lookup_elem( m_mapMac_fd, &mac_key_next, &mac_value );
     if ( 0 == status2 ) {
       std::cout
         << "  "
@@ -91,8 +125,10 @@ void XdpFlow::UpdateStats( const boost::system::error_code& ) {
         << "," << mac_value.bytes
         << "," << mac_value.packets
         << std::endl;
+      mac_value.flags = 0;
+      // status2 = bpf_map_update_elem( map_fd[0], &mac_key_next, &mac_value, BPF_EXIST );
     }
-    status1 = bpf_map_get_next_key( map_fd[0], &mac_key_next, &mac_key_next);
+    status1 = bpf_map_get_next_key( m_mapMac_fd, &mac_key_next, &mac_key_next);
   }
 
   std::cout << "Emit map: protocol types: " << std::endl;
@@ -101,13 +137,13 @@ void XdpFlow::UpdateStats( const boost::system::error_code& ) {
   boost::endian::big_uint16_t ethertype_next;
   uint64_t count;
 
-  status1 = bpf_map_get_next_key( map_fd[1], &ethertype_blank, &ethertype_next );
+  status1 = bpf_map_get_next_key( m_mapProtocol_fd, &ethertype_blank, &ethertype_next );
   while ( 0 == status1 ) {
-    int status2 = bpf_map_lookup_elem( map_fd[1], &ethertype_next, &count );
+    int status2 = bpf_map_lookup_elem( m_mapProtocol_fd, &ethertype_next, &count );
     if ( 0 == status2 ) {
       std::cout << std::hex << "0x" << ethertype_next << "=" << std::dec << count << std::endl;
     }
-    status1 = bpf_map_get_next_key( map_fd[1], &ethertype_next, &ethertype_next );
+    status1 = bpf_map_get_next_key( m_mapProtocol_fd, &ethertype_next, &ethertype_next );
   }
 
   if ( 0 != m_nLoops ) {
@@ -116,7 +152,7 @@ void XdpFlow::UpdateStats( const boost::system::error_code& ) {
       Start();
     }
     else {
-      bpf_set_link_xdp_fd( m_if_index, -1, 0 );
+      //bpf_set_link_xdp_fd( m_if_index, -1, 0 );
     }
 
   }

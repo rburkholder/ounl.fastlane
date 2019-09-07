@@ -83,6 +83,7 @@ target_include_directories(
     # unistd_64_x32.h
 #    ${SRC_LINUX}/arch/x86/include/generated
     # asm-generic/percpu.h
+    ${SRC_LINUX}/tools/lib/bpf
 
     // lastest netlink instead of apt installed headers
     /usr/local/include/libnl3

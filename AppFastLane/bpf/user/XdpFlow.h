@@ -24,6 +24,9 @@ public:
 protected:
 private:
 
+  int m_mapMac_fd;
+  int m_mapProtocol_fd;
+
   asio::io_context& m_context;
   asio::steady_timer m_timer;
 
