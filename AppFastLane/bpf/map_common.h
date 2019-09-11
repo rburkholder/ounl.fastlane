@@ -15,8 +15,8 @@
 
 struct map_ipv6_key_def {
   __u32 if_index;
-  unsigned char dst[8];
-  unsigned char src[8];
+  unsigned char dst[16];
+  unsigned char src[16];
 };
 
  struct map_stats_def {
