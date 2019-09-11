@@ -681,6 +681,9 @@ void interface::Poll() {
 
             asio::post( m_strand, std::bind( &interface::Poll, this ) );
           }
+
+          // TODO: change from polling to blocking mode and assign a thread per block and post message
+          //    to a main processing thread (strand) for synchronization?
           status = nl_recvmsgs_default(m_nl_sock_event);
           status = nl_recvmsgs_default(m_nl_sock_cmd);
         });
