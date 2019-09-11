@@ -25,7 +25,7 @@ find_package(Boost 1.69.0 REQUIRED COMPONENTS system log log_setup program_optio
 
 #message("boost lib: ${Boost_LIBRARIES}")
 
-set(SRC_LINUX /usr/src/linux-4.19.39)
+set(SRC_LINUX /usr/src/linux-5.2.9)
 
 set(
   file_h
@@ -75,15 +75,16 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC BOOST_LOG_DYN_LINK BOOST_ASIO_
 target_include_directories(
   ${PROJECT_NAME} PUBLIC 
     ".."
-    ${SRC_LINUX}
+  ${SRC_LINUX}/tools/lib
+  ${SRC_LINUX}/tools/testing/selftests/bpf
+  ${SRC_LINUX}/tools/lib
+  ${SRC_LINUX}/tools/include
+  ${SRC_LINUX}/tools/perf
     ${SRC_LINUX}/include/uapi
-    ${SRC_LINUX}/include
-    # asm/linkage.h
     ${SRC_LINUX}/arch/x86/include/uapi
-    # unistd_64_x32.h
-#    ${SRC_LINUX}/arch/x86/include/generated
-    # asm-generic/percpu.h
-    ${SRC_LINUX}/tools/lib/bpf
+    ${SRC_LINUX}/include
+    ${SRC_LINUX}/arch/x86/include
+    ${SRC_LINUX}
 
     // lastest netlink instead of apt installed headers
     /usr/local/include/libnl3

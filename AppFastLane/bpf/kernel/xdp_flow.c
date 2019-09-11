@@ -7,14 +7,25 @@
  * Created:   Sept 2019
  */
 
-#include <linux/bpf.h>
-#include <linux/in.h>
-#include <linux/if_ether.h>
-#include <linux/if_packet.h>
-#include <linux/if_vlan.h>
-#include <linux/ip.h>
+//#include <linux/compiler.h>
+//#include <tools/include/linux/compiler.h>
+//#include <linux/compiler.h>
+//#include <uapi/linux/bpf.h>
+
+
+#ifndef __attribute_const__
+# define __attribute_const__
+#endif
+
+#include <uapi/linux/bpf.h>
+#include <uapi/linux/types.h>
+#include <uapi/linux/if_ether.h>
+#include <uapi/linux/if_packet.h>
+#include <uapi/linux/if_vlan.h>
+#include <uapi/linux/ip.h>
 #include <uapi/linux/ipv6.h>
-#include <tools/testing/selftests/bpf/bpf_helpers.h>
+#include <uapi/linux/in.h>
+#include <bpf_helpers.h>
 
 #include "../map_common.h"
 
@@ -48,6 +59,14 @@ struct bpf_map_def SEC("maps") map_ipv6 = {
   .max_entries = 1024,
 };
 
+//AF_XDP socket (XSK)
+struct bpf_map_def SEC("maps") map_xsk = {
+  .type = BPF_MAP_TYPE_XSKMAP,
+  .key_size = sizeof(int),
+  .value_size = sizeof(int),
+  .max_entries = 64,  /* Assume netdev has no more than 64 queues */
+};
+
 #define bpf_printk(fmt, ...)                                    \
 ({                                                              \
     char ____fmt[] = fmt;                            \
@@ -72,7 +91,6 @@ int xdp_flow( struct xdp_md* ctx ) {
   }
 
   struct map_mac_key_def map_mac_key;
-  //__builtin_memset( &map_mac_key, 0, sizeof( struct map_mac_key_def ) );
 
   map_mac_key.if_index = ctx->ingress_ifindex;
   __builtin_memcpy( &map_mac_key.mac_dst, phdrEthernet->h_dest, 6 );
@@ -84,19 +102,15 @@ int xdp_flow( struct xdp_md* ctx ) {
   if ( 0 == map_mac_value_ptr ) { // key was not found
 
     struct map_mac_value_def map_mac_value;
-    //__builtin_memset( &map_mac_value, 0, sizeof( struct map_mac_value_def ) );
-
     map_mac_value.packets = 1;
     map_mac_value.bytes = nBytes;
-    //map_mac_value.flags = 1;
 
     bpf_map_update_elem( &map_mac, &map_mac_key, &map_mac_value, BPF_ANY );
 
   }
   else {
     map_mac_value_ptr->bytes += nBytes;
-    map_mac_value_ptr->packets += 1;
-    //map_mac_value_ptr->flags = 1;
+    map_mac_value_ptr->packets ++;
   }
 
   __u64 one = 1;
@@ -152,7 +166,6 @@ int xdp_flow( struct xdp_md* ctx ) {
       break;
   }
 
-
   return XDP_PASS;
 }
 
@@ -175,3 +188,7 @@ char _license[] SEC("license") = "GPL";
 //  __u32 ingress_ifindex; /* rxq->dev->ifindex */
 //  __u32 rx_queue_index;  /* rxq->queue_index  */
 //};
+
+// XDP_REDIRECT:
+// rx_queue_index (slide 15):
+// https://people.netfilter.org/hawk/presentations/LLC2018/XDP_LLC2018_redirect.pdf

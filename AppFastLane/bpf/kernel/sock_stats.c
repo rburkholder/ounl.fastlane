@@ -1,8 +1,27 @@
+/*
+ * File:      sock_stats.c
+ * Project:   AppFastLane
+ * Author:    raymond@burkholder.net
+ * copyright: 2019 Raymond Burkholder
+ * License:   GPL3
+ * Created:   Aug 2019
+ */
+
+#ifndef __attribute_const__
+# define __attribute_const__
+#endif
+
 #include <uapi/linux/bpf.h>
+#include <uapi/linux/types.h>
 #include <uapi/linux/if_ether.h>
 #include <uapi/linux/if_packet.h>
+#include <uapi/linux/if_vlan.h>
 #include <uapi/linux/ip.h>
-#include <tools/testing/selftests/bpf/bpf_helpers.h>
+#include <uapi/linux/ipv6.h>
+#include <uapi/linux/in.h>
+#include <bpf_helpers.h>
+
+#include "../map_common.h"
 
 #define SEC(NAME) __attribute__((section(NAME), used))
 

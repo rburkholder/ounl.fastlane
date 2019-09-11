@@ -3,6 +3,8 @@ cmake_minimum_required (VERSION 3.13)
 
 project(bpf_kernel)
 
+set(SRC_LINUX /usr/src/linux-5.2.9)
+
 add_library(
   sock_stats OBJECT 
   sock_stats.c
@@ -10,24 +12,42 @@ add_library(
 
 target_include_directories(
   sock_stats PUBLIC 
+  ${SRC_LINUX}/tools/lib
+  ${SRC_LINUX}/tools/testing/selftests/bpf
+  ${SRC_LINUX}/tools/lib
+  ${SRC_LINUX}/tools/include
+  ${SRC_LINUX}/tools/perf
+  ${SRC_LINUX}/include/uapi
+  ${SRC_LINUX}/include
+#  ${SRC_LINUX}
   /usr/include/x86_64-linux-gnu
-  /usr/src/linux-4.19.39
-  /usr/src/linux-headers-4.19.0-5-common/include
+#  ${SRC_LINUX}/arch/x86/include/uapi
+#  ${SRC_LINUX}/arch/x86/include
+#  ${SRC_LINUX}/arch/x86/include/generated
   )
   
+target_compile_definitions(sock_stats PUBLIC __x86_64__ )
+
 add_library(
   xdp_flow OBJECT
-  ../map_mac.h 
+  ../map_common.h 
   xdp_flow.c
   )
   
 target_include_directories(
   xdp_flow PUBLIC
-  /usr/src/linux-4.19.39/include/uapi
-  /usr/src/linux-4.19.39/include
-  /usr/src/linux-4.19.39/arch/x86/include/uapi
-  /usr/src/linux-4.19.39
-#  /usr/include/x86_64-linux-gnu
+  ${SRC_LINUX}/tools/lib
+  ${SRC_LINUX}/tools/testing/selftests/bpf
+  ${SRC_LINUX}/tools/lib
+  ${SRC_LINUX}/tools/include
+  ${SRC_LINUX}/tools/perf
+  ${SRC_LINUX}/include/uapi
+  ${SRC_LINUX}/include
+#  ${SRC_LINUX}
+  /usr/include/x86_64-linux-gnu
+#  ${SRC_LINUX}/arch/x86/include/uapi
+#  ${SRC_LINUX}/arch/x86/include
+#  ${SRC_LINUX}/arch/x86/include/generated
 )
 
 target_compile_definitions(xdp_flow PUBLIC __x86_64__ )
