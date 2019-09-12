@@ -12,7 +12,6 @@
 //#include <linux/compiler.h>
 //#include <uapi/linux/bpf.h>
 
-
 #ifndef __attribute_const__
 # define __attribute_const__
 #endif
