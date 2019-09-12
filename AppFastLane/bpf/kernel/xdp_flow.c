@@ -10,7 +10,8 @@
 //#include <linux/compiler.h>
 //#include <tools/include/linux/compiler.h>
 //#include <linux/compiler.h>
-//#include <uapi/linux/bpf.h>
+
+// kernel module to pick and choose packets to redirect
 
 #ifndef __attribute_const__
 # define __attribute_const__
@@ -30,6 +31,7 @@
 
 #define SEC(NAME) __attribute__((section(NAME), used))
 
+// pass ifindex, dst mac, src mac to userland
 struct bpf_map_def SEC("maps") map_mac = {
   .type = BPF_MAP_TYPE_LRU_HASH,
   .key_size = sizeof(struct map_mac_key_def),
@@ -37,6 +39,7 @@ struct bpf_map_def SEC("maps") map_mac = {
   .max_entries = 1024,
 };
 
+// packet counter for each 2 byte ethernet protocol number
 struct bpf_map_def SEC("maps") map_protocol_stats = {
   .type = BPF_MAP_TYPE_HASH,
   .key_size = sizeof(__u16),
@@ -44,6 +47,7 @@ struct bpf_map_def SEC("maps") map_protocol_stats = {
   .max_entries = 128,
 };
 
+// pass ifindex, dst ipv4, src ipv4 stats to userland
 struct bpf_map_def SEC("maps") map_ipv4 = {
   .type = BPF_MAP_TYPE_LRU_HASH,
   .key_size = sizeof(struct map_ipv4_key_def),
@@ -51,6 +55,7 @@ struct bpf_map_def SEC("maps") map_ipv4 = {
   .max_entries = 1024,
 };
 
+// pass ifindex, dst ipv6, src ipv6 stats to userland
 struct bpf_map_def SEC("maps") map_ipv6 = {
   .type = BPF_MAP_TYPE_LRU_HASH,
   .key_size = sizeof(struct map_ipv6_key_def),
@@ -89,6 +94,8 @@ int xdp_flow( struct xdp_md* ctx ) {
     return XDP_DROP;
   }
 
+  // *** counters for mac address pairs
+
   struct map_mac_key_def map_mac_key;
 
   map_mac_key.if_index = ctx->ingress_ifindex;
@@ -98,36 +105,38 @@ int xdp_flow( struct xdp_md* ctx ) {
   __u64 nBytes = pDataEnd - pDataBgn; // TODO: is pDataEnd one beyond?
 
   struct map_mac_value_def* map_mac_value_ptr = bpf_map_lookup_elem( &map_mac, &map_mac_key );
-  if ( 0 == map_mac_value_ptr ) { // key was not found
+  if ( NULL == map_mac_value_ptr ) { // key was not found
 
-    struct map_mac_value_def map_mac_value;
-    map_mac_value.packets = 1;
-    map_mac_value.bytes = nBytes;
+    struct map_mac_value_def map_mac_value = {
+      .packets = 1,
+      .bytes = nBytes,
+    };
 
     bpf_map_update_elem( &map_mac, &map_mac_key, &map_mac_value, BPF_ANY );
-
   }
   else {
     map_mac_value_ptr->bytes += nBytes;
     map_mac_value_ptr->packets ++;
   }
 
+  // *** counters for ethernet protocol
+
+  __u16 protocolEth = phdrEthernet->h_proto; // network byte order
+
   __u64 one = 1;
-  __u64* protocol_value_ptr = bpf_map_lookup_elem( &map_protocol_stats, &phdrEthernet->h_proto );
-  if ( 0 == protocol_value_ptr ) {
-    bpf_map_update_elem( &map_protocol_stats, &phdrEthernet->h_proto, &one, BPF_ANY );
+  __u64* protocol_value_ptr = bpf_map_lookup_elem( &map_protocol_stats, &protocolEth );
+  if ( NULL == protocol_value_ptr ) {
+    bpf_map_update_elem( &map_protocol_stats, &protocolEth, &one, BPF_ANY );
   }
   else {
     *protocol_value_ptr += 1;
   }
 
-  __u16 protocol = phdrEthernet->h_proto;
-
-  switch ( protocol ) {
-    case __constant_htons(ETH_P_IP): {
+  switch ( protocolEth ) {
+    case __constant_htons(ETH_P_IP): { // ipv4 protocol
         struct iphdr* phdrIpv4;
         phdrIpv4 = pDataBgn + offset; // offset after struct ethhdr
-        offset += sizeof(*phdrIpv4);
+        offset += sizeof(*phdrIpv4);  // offset to after ipv4 header
         if ( pDataBgn + offset > pDataEnd ) {
           // TODO: need a drop counter here (use an index into an array for passing to user space)
           bpf_printk("xdp_flow bpf_printk drop #2\n");
@@ -138,7 +147,7 @@ int xdp_flow( struct xdp_md* ctx ) {
         map_ipv4_key.dst = phdrIpv4->daddr;
         map_ipv4_key.src = phdrIpv4->saddr;
         struct map_stats_def* map_stats_ptr = bpf_map_lookup_elem( &map_ipv4, &map_ipv4_key );
-        if ( 0 == map_stats_ptr ) {
+        if ( NULL == map_stats_ptr ) {
           struct map_stats_def map_stats = {
             .packets = 1,
             .bytes = pDataEnd - ( pDataBgn + offset ),
