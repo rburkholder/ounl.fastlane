@@ -6,6 +6,8 @@
  * License:   GPL3
  * Created:   Sep. 6, 2019
  */
+
+#pragma once
  
  struct map_ipv4_key_def {
   __u32 if_index;
@@ -35,6 +37,5 @@ struct map_mac_value_def {
   __u64 bytes;
 //  __u64 flags;  // won't sync properly, needs to be in value structure by itself
   // 1 updated by kernel, reset to 0 by user space
+  // maybe migrate to the lock construct which may do this properly
 };
-
- 
