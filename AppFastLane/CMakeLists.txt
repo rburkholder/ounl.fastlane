@@ -20,6 +20,7 @@ set(BOOST_USE_STATIC_RUNTIME OFF)
 #set(BOOST_ROOT "/usr/local")
 #set(Boost_DETAILED_FAILURE_MSG ON)
 set(BOOST_INCLUDEDIR "/usr/local/include/boost")
+set(BOOST_LIBRARYDIR "/usr/local/lib")
 
 find_package(Boost 1.69.0 REQUIRED COMPONENTS system log log_setup program_options)
 
@@ -75,11 +76,11 @@ target_compile_definitions(${PROJECT_NAME} PUBLIC BOOST_LOG_DYN_LINK BOOST_ASIO_
 target_include_directories(
   ${PROJECT_NAME} PUBLIC 
     ".."
-  ${SRC_LINUX}/tools/lib
-  ${SRC_LINUX}/tools/testing/selftests/bpf
-  ${SRC_LINUX}/tools/lib
-  ${SRC_LINUX}/tools/include
-  ${SRC_LINUX}/tools/perf
+    ${SRC_LINUX}/tools/lib
+    ${SRC_LINUX}/tools/testing/selftests/bpf
+    ${SRC_LINUX}/tools/lib
+    ${SRC_LINUX}/tools/include
+    ${SRC_LINUX}/tools/perf
     ${SRC_LINUX}/include/uapi
     ${SRC_LINUX}/arch/x86/include/uapi
     ${SRC_LINUX}/include
@@ -89,15 +90,6 @@ target_include_directories(
     // lastest netlink instead of apt installed headers
     /usr/local/include/libnl3
 
-#    /usr/src/linux-headers-4.19.0-5-common/arch/x86/include
-#    /usr/src/linux-headers-4.19.0-5-common/include/uapi
-#    /usr/src/linux-headers-4.19.0-5-common/arch/x86/include
-#    ${SRC_LINUX}/tools/lib/bpf
-#    ${SRC_LINUX}/tools/lib
-
-#   asm-generic/barrier.h    
-#    ${SRC_LINUX}/tools/include
-#    ${SRC_LINUX}/tools/perf
   )
 
 target_link_directories(
