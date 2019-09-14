@@ -107,7 +107,7 @@ private:
     __u16 xsk_bind_flags;
     int xsk_if_queue;
     bool xsk_poll_mode;
-  };
+  } m_config;
 
   int m_if_index;
 
@@ -115,6 +115,9 @@ private:
   int m_mapProtocol_fd;
   int m_mapIpv4_fd;
   int m_mapXsk_fd;
+
+  struct xsk_umem_info* m_umem;
+  struct xsk_socket_info* m_xsk_socket;
 
   inline __u32 xsk_ring_prod__free(struct xsk_ring_prod* r ) {
     r->cached_cons = *r->consumer + r->size;
@@ -138,15 +141,20 @@ XdpFlow_impl::XdpFlow_impl() {
   uint64_t packet_buffer_size;
   struct rlimit rlim = {RLIM_INFINITY, RLIM_INFINITY};
 
-  struct config cfg = {
-    .ifindex   = -1,
-    .do_unload = false,
+  //m_if_index = 1; // use lo for now
+  m_if_index = 4;
+  //__u32 xdp_flags( XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE );
+  //__u32 xdp_flags( XDP_FLAGS_SKB_MODE  );
+
+//  struct config cfg = {
+  m_config.ifindex   = -1;
+  m_config.xdp_flags = XDP_FLAGS_SKB_MODE;
+  m_config.do_unload = false;
 //    .filename = "",
 //    .progsec = "xdp_sock"
-  };
-
-  *cfg.filename = 0;
-  strcpy( cfg.progsec, "xdp_sock" );
+//  };
+  *m_config.filename = 0;
+  strcpy( m_config.progsec, "xdp_sock" );
 
   struct bpf_map* mapMac = bpf_object__find_map_by_name(objProgram, "map_mac");
   if (!mapMac)
@@ -191,21 +199,13 @@ XdpFlow_impl::XdpFlow_impl() {
 //    throw std::runtime_error( sError );
 //  }
 
-  //m_if_index = 1; // use lo for now
-  m_if_index = 4;
-  //__u32 xdp_flags( XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE );
-  __u32 xdp_flags( XDP_FLAGS_SKB_MODE  );
-
   // TODO: load for all interfaces, will need to be supplied with if_indexes
-  int status = bpf_set_link_xdp_fd(m_if_index, prog_fd, xdp_flags );
+  int status = bpf_set_link_xdp_fd(m_if_index, prog_fd, m_config.xdp_flags );
   std::cout << "*** bpf_set_link_xdp_fd status: " << status << std::endl;
 
   /* Allow unlimited locking of memory, so all memory needed for packet
    * buffers can be locked.
    */
-  struct xsk_umem_info* umem;
-  struct xsk_socket_info* xsk_socket;
-
   if (setrlimit(RLIMIT_MEMLOCK, &rlim)) {
     std::string sError( "ERROR: setrlimit(RLIMIT_MEMLOCK) " );
     sError += strerror(errno);
@@ -223,16 +223,17 @@ XdpFlow_impl::XdpFlow_impl() {
   }
 
   /* Initialize shared packet_buffer for umem usage */
-  umem = configure_xsk_umem(packet_buffer, packet_buffer_size);
-  if (umem == NULL) {
+  m_umem = configure_xsk_umem(packet_buffer, packet_buffer_size);
+  if ( m_umem == NULL) {
     fprintf(stderr, "ERROR: Can't create umem \"%s\"\n",
             strerror(errno));
     exit(EXIT_FAILURE);
   }
 
   /* Open and configure the AF_XDP (xsk) socket */
-  xsk_socket = xsk_configure_socket(&cfg, umem);
-  if (xsk_socket == NULL) {
+  m_config.ifindex = m_if_index;  // TODO: deal with this if there is a loop
+  m_xsk_socket = xsk_configure_socket(&m_config, m_umem);
+  if ( m_xsk_socket == NULL) {
     fprintf(stderr, "ERROR: Can't setup AF_XDP socket \"%s\"\n",
             strerror(errno));
     exit(EXIT_FAILURE);
@@ -241,10 +242,10 @@ XdpFlow_impl::XdpFlow_impl() {
 
 XdpFlow_impl::~XdpFlow_impl() {
   /* Cleanup */
-//  xsk_socket__delete(xsk_socket->xsk);
-//  xsk_umem__delete(umem->umem);
-//  xdp_link_detach(cfg.ifindex, cfg.xdp_flags, 0);
-  bpf_set_link_xdp_fd( m_if_index, -1, 0 );
+  xsk_socket__delete(m_xsk_socket->xsk);
+  xsk_umem__delete(m_umem->umem);
+  //xdp_link_detach( m_config.ifindex, m_config.xdp_flags, 0);
+  bpf_set_link_xdp_fd( m_if_index, -1, 0 ); // TODO: deal with multiple interfaces
 };
 
 struct XdpFlow_impl::xsk_umem_info* XdpFlow_impl::configure_xsk_umem(void *buffer, uint64_t size) {
