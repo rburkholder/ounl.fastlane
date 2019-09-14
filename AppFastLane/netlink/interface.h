@@ -41,7 +41,7 @@ public:
      ,bLowerUp( false ), bUp( false ), bRunning( false )
      ,bLoopback( false ), bEthernet( false )
     {
-       for ( int ix = 0; ix++; ix < 6 ) {
+       for ( int ix = 0; ix < 6; ix++ ) {
          mac[ ix ] = broadcast[ ix ] = 0;
        }
     }
