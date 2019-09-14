@@ -74,7 +74,7 @@ add_executable(
 target_compile_definitions(${PROJECT_NAME} PUBLIC BOOST_LOG_DYN_LINK BOOST_ASIO_SEPARATE_COMPILATION )
 
 target_include_directories(
-  ${PROJECT_NAME} PUBLIC 
+  ${PROJECT_NAME} PRIVATE
     ".."
     ${SRC_LINUX}/tools/lib
     ${SRC_LINUX}/tools/testing/selftests/bpf

@@ -3,6 +3,8 @@ cmake_minimum_required (VERSION 3.13)
 
 project(bpf_kernel)
 
+set(CMAKE_VERBOSE_MAKEFILE ON)
+
 set(SRC_LINUX /usr/src/linux-5.2.9)
 
 add_library(
@@ -11,7 +13,7 @@ add_library(
   )
 
 target_include_directories(
-  sock_stats PUBLIC 
+  sock_stats PRIVATE
   ${SRC_LINUX}/tools/lib
   ${SRC_LINUX}/tools/testing/selftests/bpf
   ${SRC_LINUX}/tools/lib
@@ -19,8 +21,8 @@ target_include_directories(
   ${SRC_LINUX}/tools/perf
   ${SRC_LINUX}/include/uapi
   ${SRC_LINUX}/include
-#  ${SRC_LINUX}
   /usr/include/x86_64-linux-gnu
+#  ${SRC_LINUX}
 #  ${SRC_LINUX}/arch/x86/include/uapi
 #  ${SRC_LINUX}/arch/x86/include
 #  ${SRC_LINUX}/arch/x86/include/generated
@@ -35,7 +37,7 @@ add_library(
   )
   
 target_include_directories(
-  xdp_flow PUBLIC
+  xdp_flow PRIVATE
   ${SRC_LINUX}/tools/lib
   ${SRC_LINUX}/tools/testing/selftests/bpf
   ${SRC_LINUX}/tools/lib
@@ -43,8 +45,8 @@ target_include_directories(
   ${SRC_LINUX}/tools/perf
   ${SRC_LINUX}/include/uapi
   ${SRC_LINUX}/include
-#  ${SRC_LINUX}
   /usr/include/x86_64-linux-gnu
+#  ${SRC_LINUX}
 #  ${SRC_LINUX}/arch/x86/include/uapi
 #  ${SRC_LINUX}/arch/x86/include
 #  ${SRC_LINUX}/arch/x86/include/generated
