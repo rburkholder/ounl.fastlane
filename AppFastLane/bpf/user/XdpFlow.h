@@ -17,6 +17,8 @@
 
 namespace asio = boost::asio;
 
+class XdpFlow_impl;
+
 class XdpFlow {
 public:
   XdpFlow( asio::io_context& );
@@ -24,16 +26,12 @@ public:
 protected:
 private:
 
-  int m_mapMac_fd;
-  int m_mapProtocol_fd;
-  int m_mapIpv4_fd;
-
   asio::io_context& m_context;
   asio::steady_timer m_timer;
 
-  int m_if_index;
-
   size_t m_nLoops;
+
+  std::unique_ptr<XdpFlow_impl> m_pXdpFlow_impl;
 
   void Start();
   void UpdateStats( const boost::system::error_code& );
