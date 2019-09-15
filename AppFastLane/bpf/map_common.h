@@ -8,6 +8,10 @@
  */
 
 #pragma once
+
+extern "C" {
+#include <uapi/linux/if_ether.h>
+}
  
  struct map_ipv4_key_def {
   __u32 if_index;
@@ -28,8 +32,8 @@ struct map_ipv6_key_def {
 
  struct map_mac_key_def {
   __u32 if_index;
-  unsigned char mac_dst[ 6 ];
-  unsigned char mac_src[ 6 ];
+  unsigned char mac_dst[ ETH_ALEN ];
+  unsigned char mac_src[ ETH_ALEN ];
 };
 
 struct map_mac_value_def {
