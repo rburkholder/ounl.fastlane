@@ -84,8 +84,17 @@ struct bpf_map_def SEC("maps") map_xsk = {
         ##__VA_ARGS__);                 \
 })
 
-SEC("xdp_sock")
-int xdp_flow( struct xdp_md* ctx ) {
+// need to maintain this order of programs
+SEC( "xdp_sock_egress" )
+int xdp_egress( struct xdp_md* ctx ) {
+  bpf_printk("xdp_sock_egress\n");
+  return XDP_PASS;
+}
+
+SEC("xdp_sock_ingress")
+int xdp_ingress( struct xdp_md* ctx ) {
+  
+  bpf_printk("xdp_sock_ingress\n");
 
   void* pDataBgn = (void*)(long)ctx->data;
   void* pDataEnd = (void*)(long)ctx->data_end;
@@ -141,39 +150,47 @@ int xdp_flow( struct xdp_md* ctx ) {
   }
   
   // *** determine if any packet pre-processing required
+  
+  enum xdp_action action = XDP_PASS;
+  bpf_printk("xdp_flow switch:\n");
 
   switch ( protocolEth ) {
     case __constant_htons(ETH_P_IP): { // ipv4 protocol
+        bpf_printk("xdp_flow ip\n");
         struct iphdr* phdrIpv4;
         phdrIpv4 = pDataBgn + offset; // offset after struct ethhdr
         offset += sizeof(*phdrIpv4);  // offset to after ipv4 header
         if ( pDataBgn + offset > pDataEnd ) {
           // TODO: need a drop counter here (use an index into an array for passing to user space)
           bpf_printk("xdp_flow bpf_printk drop #2\n");
-          return XDP_DROP;
-        }
-        struct map_ipv4_key_def map_ipv4_key = {
-          .if_index = ix_if_ingress,
-          .dst = phdrIpv4->daddr,
-          .src = phdrIpv4->saddr,
-        };
-        struct map_stats_def* map_stats_ptr = bpf_map_lookup_elem( &map_ipv4, &map_ipv4_key );
-        if ( NULL == map_stats_ptr ) {
-          struct map_stats_def map_stats = {
-            .packets = 1,
-            .bytes = pDataEnd - ( pDataBgn + offset ),
-          };
-          bpf_map_update_elem( &map_ipv4, &map_ipv4_key, &map_stats, BPF_ANY );
+          action = XDP_DROP;
         }
         else {
-          map_stats_ptr->packets ++;
-          map_stats_ptr->bytes += pDataEnd - ( pDataBgn + offset );
+          struct map_ipv4_key_def map_ipv4_key = {
+            .if_index = ix_if_ingress,
+            .dst = phdrIpv4->daddr,
+            .src = phdrIpv4->saddr,
+          };
+          struct map_stats_def* map_stats_ptr = bpf_map_lookup_elem( &map_ipv4, &map_ipv4_key );
+          if ( NULL == map_stats_ptr ) {
+            struct map_stats_def map_stats = {
+              .packets = 1,
+              .bytes = pDataEnd - ( pDataBgn + offset ),
+            };
+            bpf_map_update_elem( &map_ipv4, &map_ipv4_key, &map_stats, BPF_ANY );
+          }
+          else {
+            map_stats_ptr->packets ++;
+            map_stats_ptr->bytes += pDataEnd - ( pDataBgn + offset );
+          }
+          action = XDP_REDIRECT;
         }
       }
       break;
     case __constant_htons(ETH_P_IPV6):
       break;
     case __constant_htons(ETH_P_ARP):
+      bpf_printk("xdp_flow arp\n");
       break;
     case __constant_htons(ETH_P_8021Q): /* 802.1Q VLAN Extended Header  */
       break;
@@ -190,8 +207,15 @@ int xdp_flow( struct xdp_md* ctx ) {
   /* A set entry here means that the correspnding queue_id
    * has an active AF_XDP socket bound to it. */
 //  if ( bpf_map_lookup_elem( &map_xsk, &ix_rx_queue ) )
-    // note the return, need to check return values
-  return bpf_redirect_map( &map_xsk, ix_rx_queue, 0 );
+// note the return, need to check return values
+  switch ( action ) {
+    case XDP_REDIRECT:
+      return bpf_redirect_map( &map_xsk, ix_rx_queue, 0 );
+      break;
+    default:
+      return action;
+      break;
+  }
   
   return XDP_PASS;
 }

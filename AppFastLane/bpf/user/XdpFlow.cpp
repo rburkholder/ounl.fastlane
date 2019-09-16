@@ -40,7 +40,8 @@ extern "C" {
 #include <uapi/linux/if_ether.h>
 #include <uapi/linux/if_link.h>
 
-#include <uapi/linux/ip.h>
+//#include <uapi/linux/ip.h>
+#include <netinet/ip.h>
 #include <uapi/linux/icmp.h>
 
 #include <uapi/linux/ipv6.h>
@@ -54,6 +55,7 @@ extern "C" {
 // https://github.com/pabeni/xdp_walkthrough_examples/tree/master/sample_3_1
 
 #include <AppFastLane/bpf/map_common.h>
+#include <linux/icmp.h>
 
 #define NUM_FRAMES         4096
 #define FRAME_SIZE         XSK_UMEM__DEFAULT_FRAME_SIZE
@@ -94,25 +96,25 @@ private:
     //struct stats_record prev_stats;
   };
 
-  struct config {
+//  struct config {
     __u32 xdp_flags;
-    int ifindex;
-    char *ifname;
-    char ifname_buf[IF_NAMESIZE];
-    int redirect_ifindex;
-    char *redirect_ifname;
-    char redirect_ifname_buf[IF_NAMESIZE];
-    bool do_unload;
-    bool reuse_maps;
-    char pin_dir[512];
-    char filename[512];
-    char progsec[32];
-    char src_mac[18];
-    char dest_mac[18];
+//    int ifindex;
+//    char *ifname;
+//    char ifname_buf[IF_NAMESIZE];
+//    int redirect_ifindex;
+//    char *redirect_ifname;
+//    char redirect_ifname_buf[IF_NAMESIZE];
+//    bool do_unload;
+//    bool reuse_maps;
+//    char pin_dir[512];
+//    char filename[512];
+//    char progsec[32];
+//    char src_mac[18];
+//    char dest_mac[18];
     __u16 xsk_bind_flags;
-    int xsk_if_queue;
+//    int xsk_if_queue;
     bool xsk_poll_mode;
-  } m_config;
+//  } m_config;
 
   int m_if_index;
 
@@ -133,8 +135,7 @@ private:
   uint64_t xsk_alloc_umem_frame(struct xsk_socket_info* xsk);
   void xsk_free_umem_frame( struct xsk_socket_info* xsk, uint64_t frame );
   uint64_t xsk_umem_free_frames(struct xsk_socket_info* xsk);
-  struct xsk_socket_info* xsk_configure_socket(struct config* cfg,
-                                               struct xsk_umem_info* umem);
+  struct xsk_socket_info* xsk_configure_socket();
   
   void ReceivePackets();
   bool ProcessPacket( uint64_t addr, uint32_t len );
@@ -147,75 +148,95 @@ XdpFlow_impl::XdpFlow_impl() {
   std::cout << "XdpFlow_impl start" << std::endl;
   
   struct bpf_object* objProgram;
-  int prog_fd;
+  
+  struct bpf_program* program_egress;
+  int fd_prog_egress;
+  
+  struct bpf_program* program_ingress;
+  int fd_prog_ingress;
 
   void *packet_buffer;
   uint64_t packet_buffer_size;
   struct rlimit rlim = {RLIM_INFINITY, RLIM_INFINITY};
 
   //m_if_index = 1; // use lo for now
-  m_if_index = 9;
+  m_if_index = 13;
   //__u32 xdp_flags( XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE );
   //__u32 xdp_flags( XDP_FLAGS_SKB_MODE  );
 
 //  struct config cfg = {
-  m_config.ifindex   = -1;
-  m_config.xdp_flags = XDP_FLAGS_SKB_MODE;
-  m_config.xsk_bind_flags = 0;
-  m_config.do_unload = false;
+//  m_config.ifindex   = -1;
+//  m_config.xdp_flags = XDP_FLAGS_SKB_MODE;
+  xdp_flags = XDP_FLAGS_SKB_MODE;
+  xsk_bind_flags = 0;
+//  m_config.do_unload = false;
 //    .filename = "",
 //    .progsec = "xdp_sock"
 //  };
-  *m_config.filename = 0;
-  strcpy( m_config.progsec, "xdp_sock" );
+//  *m_config.filename = 0;
+//  strcpy( m_config.progsec, "xdp_sock_ingress" );
+
+//  struct bpf_prog_load_attr prog_load_attr = {
+//    .file = "bpf/xdp_flow.o",
+//    .prog_type = BPF_PROG_TYPE_XDP,
+//  };
   
-  struct bpf_prog_load_attr prog_load_attr = {
-    .file = "bpf/xdp_flow.o",
-    .prog_type = BPF_PROG_TYPE_XDP,
-  };
+  char prog_file_name[] = "bpf/xdp_flow.o";
   
-  if (bpf_prog_load_xattr(&prog_load_attr, &objProgram, &prog_fd))
-    error(1, errno, "can't load %s", prog_load_attr.file);
+//  if (bpf_prog_load_xattr(&prog_load_attr, &objProgram, &fd_prog_ingress))
+//    error(1, errno, "can't load %s", prog_load_attr.file);
+
+  if ( bpf_prog_load( prog_file_name, BPF_PROG_TYPE_XDP, &objProgram, &fd_prog_egress) ) {
+    error(1, errno, "can't load %s", prog_file_name );
+  }
   
-  struct bpf_map* mapMac = bpf_object__find_map_by_name(objProgram, "map_mac");
-  if (!mapMac)
-    error(1, errno, "can't load map_mac");
-  m_mapMac_fd = bpf_map__fd(mapMac);
+  program_egress = bpf_program__next(NULL, objProgram);
+  program_ingress = bpf_program__next(program_egress, objProgram);
+  
+  if (!program_egress || !program_ingress) {
+    throw( "finding a prog in obj file failed");
+  }
+  /* bpf_prog_load_xattr gives us the pointer to first prog's fd,
+   * so we're missing only the fd for dummy prog
+   */
+  fd_prog_ingress = bpf_program__fd(program_ingress);
+  if (fd_prog_egress < 0 || fd_prog_ingress < 0) {
+    std::string sError( "bpf_prog_load: " );
+    sError += strerror(errno);
+    throw( sError );
+  }
+  
+//  struct bpf_map* mapMac = bpf_object__find_map_by_name(objProgram, "map_mac");
+//  if (!mapMac)
+//    error(1, errno, "can't load map_mac");
+//  m_mapMac_fd = bpf_map__fd(mapMac);
+  m_mapMac_fd = bpf_object__find_map_fd_by_name( objProgram, "map_mac" );
   if (m_mapMac_fd < 0)
     error(1, errno, "can't get map_mac fd");
 
-  struct bpf_map* mapProtocol = bpf_object__find_map_by_name(objProgram, "map_protocol_stats");
-  if (!mapProtocol)
-    error(1, errno, "can't load map_protocol_stats");
-  m_mapProtocol_fd = bpf_map__fd(mapProtocol);
+//  struct bpf_map* mapProtocol = bpf_object__find_map_by_name(objProgram, "map_protocol_stats");
+//  if (!mapProtocol)
+//    error(1, errno, "can't load map_protocol_stats");
+//  m_mapProtocol_fd = bpf_map__fd(mapProtocol);
+  m_mapProtocol_fd = bpf_object__find_map_fd_by_name( objProgram, "map_protocol_stats" );
   if (m_mapProtocol_fd < 0)
     error(1, errno, "can't get map_protocol_stats fd");
 
-  struct bpf_map* mapIpv4 = bpf_object__find_map_by_name(objProgram, "map_ipv4");
-  if (!mapIpv4)
-    error(1, errno, "can't load map_ipv4_stats");
-  m_mapIpv4_fd = bpf_map__fd(mapIpv4);
+//  struct bpf_map* mapIpv4 = bpf_object__find_map_by_name(objProgram, "map_ipv4");
+//  if (!mapIpv4)
+//    error(1, errno, "can't load map_ipv4_stats");
+//  m_mapIpv4_fd = bpf_map__fd(mapIpv4);
+  m_mapIpv4_fd = bpf_object__find_map_fd_by_name( objProgram, "map_ipv4" );
   if (m_mapIpv4_fd < 0)
     error(1, errno, "can't get map_ipv4_stats fd");
 
-  struct bpf_map* mapXsk = bpf_object__find_map_by_name(objProgram, "map_xsk");
-  if (!mapXsk)
-    error(1, errno, "can't load map_xsk");
-  m_mapXsk_fd = bpf_map__fd(mapXsk);
+//  struct bpf_map* mapXsk = bpf_object__find_map_by_name(objProgram, "map_xsk");
+//  if (!mapXsk)
+//    error(1, errno, "can't load map_xsk");
+//  m_mapXsk_fd = bpf_map__fd(mapXsk);
+  m_mapXsk_fd = bpf_object__find_map_fd_by_name( objProgram, "map_xsk" );
   if (m_mapXsk_fd < 0)
     error(1, errno, "can't get m_mapXsk fd");
-
-//  static const std::string sFile( "bpf/xdp_flow.o" );
-//  if ( 0 != load_bpf_file( (char*)sFile.c_str() ) ) {
-//    std::string sError( "XdpFlow::XdpFlow load_bpf_file" );
-//    sError += bpf_log_buf;
-//    throw std::runtime_error( sError );
-//  }
-
-  // TODO: load for all interfaces, will need to be supplied with if_indexes
-  //int status = bpf_set_link_xdp_fd(m_if_index, prog_fd, m_config.xdp_flags );
-  int status = bpf_set_link_xdp_fd(m_if_index, prog_fd, 0 );
-  std::cout << "*** bpf_set_link_xdp_fd status: " << status << std::endl;
 
   /* Allow unlimited locking of memory, so all memory needed for packet
    * buffers can be locked.
@@ -245,21 +266,28 @@ XdpFlow_impl::XdpFlow_impl() {
   }
 
   /* Open and configure the AF_XDP (xsk) socket */
-  m_config.ifindex = m_if_index;  // TODO: deal with this if there is a loop
-  m_xsk_socket = xsk_configure_socket(&m_config, m_umem);
+//  m_config.ifindex = m_if_index;  // TODO: deal with this if there is a loop
+  //m_xsk_socket = xsk_configure_socket(&m_config, m_umem);
+  m_xsk_socket = xsk_configure_socket();
   if ( m_xsk_socket == NULL) {
-    fprintf(stderr, "ERROR: Can't setup AF_XDP socket \"%s\"\n",
+    fprintf(stderr, "ERROR: Can't setup AF_XDP socket: \"%s\"\n",
             strerror(errno));
     exit(EXIT_FAILURE);
   }
   
-  //
   {
     int key( 0 );
     int value = xsk_socket__fd(m_xsk_socket->xsk);
     int resultUpdate = bpf_map_update_elem( m_mapXsk_fd, &key, &value, BPF_ANY );
     std::cout << "bpf_map_update_elem result: " << resultUpdate << std::endl;
   }
+  
+  // TODO: load for all interfaces, will need to be supplied with if_indexes
+  //int status = bpf_set_link_xdp_fd(m_if_index, fd_prog_ingress, m_config.xdp_flags );
+  int status;
+  status = bpf_set_link_xdp_fd(m_if_index, -1, 0 );
+  status = bpf_set_link_xdp_fd(m_if_index, fd_prog_ingress, xdp_flags );
+  std::cout << "*** bpf_set_link_xdp_fd status: " << status << std::endl;
   
 };
 
@@ -313,9 +341,7 @@ uint64_t XdpFlow_impl::xsk_umem_free_frames( struct xsk_socket_info* xsk ) {
   return xsk->umem_frame_free;
 }
 
-struct XdpFlow_impl::xsk_socket_info* XdpFlow_impl::xsk_configure_socket(
-  struct config* cfg,
-  struct xsk_umem_info* umem)
+struct XdpFlow_impl::xsk_socket_info* XdpFlow_impl::xsk_configure_socket()
 {
   struct xsk_socket_config xsk_cfg;
   struct xsk_socket_info *xsk_info;
@@ -331,17 +357,17 @@ struct XdpFlow_impl::xsk_socket_info* XdpFlow_impl::xsk_configure_socket(
   // temporary test:
   char ifname[] = "veth-nvpn-v90";
 
-  xsk_info->umem = umem;
+  xsk_info->umem = m_umem;
   xsk_cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
   xsk_cfg.tx_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
   xsk_cfg.libbpf_flags = 0;
-  xsk_cfg.xdp_flags = cfg->xdp_flags;
-  xsk_cfg.bind_flags = cfg->xsk_bind_flags;
+  xsk_cfg.xdp_flags = xdp_flags;
+  xsk_cfg.bind_flags = xsk_bind_flags;
   ret = xsk_socket__create(
      &xsk_info->xsk,
      ifname,  //cfg->ifname,
      0, //cfg->xsk_if_queue, // need to figure out what is best for this
-     umem->umem,
+     m_umem->umem,
      &xsk_info->rx,
      &xsk_info->tx,
      &xsk_cfg);
@@ -349,7 +375,7 @@ struct XdpFlow_impl::xsk_socket_info* XdpFlow_impl::xsk_configure_socket(
   if (ret)
     goto error_exit;
 
-  ret = bpf_get_link_xdp_id(cfg->ifindex, &prog_id, cfg->xdp_flags);
+  ret = bpf_get_link_xdp_id(m_if_index, &prog_id, xdp_flags);
   if (ret)
     goto error_exit;
 
@@ -496,6 +522,8 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
   
   std::cout << "ProcessPacket len=" << len << std::endl;
   
+  bool bResult( false );
+  
   uint8_t* pkt = (uint8_t*)xsk_umem__get_data(m_xsk_socket->umem->buffer, addr);
   
   if ( false ) {
@@ -544,12 +572,107 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
   
     //m_xsk_socket->stats.tx_bytes += len;
     //m_xsk_socket->stats.tx_packets++;
-    return true;
+    //return true;
+    
+    bResult = true;
+  }
+  
+  if ( true ) {
+    uint32_t size {};
+    uint8_t tmp_mac[ETH_ALEN];
+    
+    std::cout
+      << "packet: "
+      << HexDump<unsigned char*>( pkt, pkt + len, ':' )
+      << std::endl;
+  
+    size += sizeof( struct ethhdr );
+    if ( size <= len ) {
+      struct ethhdr* pHdrEth = (struct ethhdr *) pkt;
+      std::cout
+        << "ethernet: "
+        << "d-" << HexDump<unsigned char*>( pHdrEth->h_dest, pHdrEth->h_dest + ETH_ALEN, ':' )
+        << ","
+        << "s-" << HexDump<unsigned char*>( pHdrEth->h_source, pHdrEth->h_source + ETH_ALEN, ':' )
+        << ","
+        << std::hex << "0x" << ntohs(pHdrEth->h_proto) << std::dec
+        << std::endl;
+      if ( ETH_P_IP == ntohs(pHdrEth->h_proto) ) {
+        size += sizeof( struct iphdr );
+        if ( size <= len ) {
+          struct iphdr* pHdrIpv4 = (struct iphdr*) (pHdrEth + 1);
+          uint8_t* ip_dst = (uint8_t*)&pHdrIpv4->daddr;
+          uint8_t* ip_src = (uint8_t*)&pHdrIpv4->saddr;
+          std::cout
+             << "ipv4: "
+              << "s-" << (uint16_t)ip_src[0] << "."  << (uint16_t)ip_src[1] << "."<< (uint16_t)ip_src[2] << "."<< (uint16_t)ip_src[3]
+             << ","
+              << "d-" << (uint16_t)ip_dst[0] << "."  << (uint16_t)ip_dst[1] << "."<< (uint16_t)ip_dst[2] << "."<< (uint16_t)ip_dst[3]
+             << ","
+             << (uint16_t)pHdrIpv4->protocol
+             << std::endl;
+          if ( IPPROTO_ICMP == pHdrIpv4->protocol ) {
+            size += sizeof( struct icmphdr);
+            if ( size <= len ) {
+              struct icmphdr* pHdrIcmp = (struct icmphdr*) (pHdrIpv4 + 1);
+              std::cout
+                << "icmp: "
+                << (uint16_t)pHdrIcmp->type << "," << (uint16_t)pHdrIcmp->code
+                << "," << ntohs(pHdrIcmp->un.echo.id) << "," << ntohs(pHdrIcmp->un.echo.sequence)
+                << std::endl;
+              if ( ICMP_ECHO == pHdrIcmp->type ) {
+                
+                std::cout << "ipv4 icmp detected" << std::endl;
+                
+                memcpy(tmp_mac, pHdrEth->h_dest, ETH_ALEN);
+                memcpy(pHdrEth->h_dest, pHdrEth->h_source, ETH_ALEN);
+                memcpy(pHdrEth->h_source, tmp_mac, ETH_ALEN);
+                
+                uint32_t ip = pHdrIpv4->daddr;
+                pHdrIpv4->daddr = pHdrIpv4->saddr;
+                pHdrIpv4->saddr = ip;
+  
+                pHdrIcmp->type = ICMP_ECHOREPLY;
+  
+                csum_replace2(&pHdrIcmp->checksum,
+                              htons(ICMP_ECHO << 8),
+                              htons(ICMP_ECHOREPLY << 8));
+                
+                /* Here we sent the packet out of the receive port. Note that
+                 * we allocate one entry and schedule it. Your design would be
+                 * faster if you do batch processing/transmission */
+  
+                uint32_t tx_idx = 0;
+  
+                int ret = xsk_ring_prod__reserve(&m_xsk_socket->tx, 1, &tx_idx);
+                if (ret != 1) {
+                  /* No more transmit slots, drop the packet */
+                  return false;
+                }
+  
+                xsk_ring_prod__tx_desc(&m_xsk_socket->tx, tx_idx)->addr = addr;
+                xsk_ring_prod__tx_desc(&m_xsk_socket->tx, tx_idx)->len = len;
+                xsk_ring_prod__submit(&m_xsk_socket->tx, 1);
+                m_xsk_socket->outstanding_tx++;
+  
+                //m_xsk_socket->stats.tx_bytes += len;
+                //m_xsk_socket->stats.tx_packets++;
+                //return true;
+  
+                bResult = true;
+
+              }
+            }
+          }
+        }
+      }
+    }
+    
   }
   
   std::cout << "ProcessPacket complete" << std::endl;
   
-  return false;
+  return bResult;
 }
 
 void XdpFlow_impl::CompleteTx() {
