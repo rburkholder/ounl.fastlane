@@ -1,4 +1,4 @@
-2019/089/26
+2019/08/26
 
 early doc on parts of messages and attributes
 http://smacked.org/docs/netlink.pdf
