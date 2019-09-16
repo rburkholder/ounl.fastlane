@@ -26,7 +26,7 @@ find_package(Boost 1.69.0 REQUIRED COMPONENTS system log log_setup program_optio
 
 #message("boost lib: ${Boost_LIBRARIES}")
 
-set(SRC_LINUX /usr/src/linux-5.2.9)
+set(SRC_LINUX /usr/src/linux-5.2.14)
 
 set(
   file_h
@@ -64,7 +64,7 @@ set(
     netlink/interface.cpp
   )
 
-add_executable( 
+add_executable(
   ${PROJECT_NAME}
     ${file_h}
     ${file_cpp}
@@ -93,7 +93,7 @@ target_include_directories(
   )
 
 target_link_directories(
-  ${PROJECT_NAME} PUBLIC 
+  ${PROJECT_NAME} PUBLIC
     /usr/local/lib
     ${SRC_LINUX}/tools/lib/bpf
   )
@@ -110,7 +110,7 @@ target_link_libraries(
     elf
     nl-3
     nl-route-3
-  )  
+  )
 
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
 
@@ -122,7 +122,7 @@ install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)
 #target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 #add_definitions(${Boost_LIB_DIAGNOSTIC_DEFINITIONS})
 #target_include_directories(${PROJECT_NAME} PUBLIC ".." ${Boost_INCLUDE_DIR})
-#include_directories(".." ${Boost_INCLUDE_DIR})  
+#include_directories(".." ${Boost_INCLUDE_DIR})
 #rm add_link_options( "--trace" )
 #target_link_options( ${PROJECT_NAME} PUBLIC "--verbose" "--trace" "--stats")
 #SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} --verbose --trace --stats")
