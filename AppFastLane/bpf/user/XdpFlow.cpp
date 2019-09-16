@@ -39,6 +39,10 @@ extern "C" {
 
 #include <uapi/linux/if_ether.h>
 #include <uapi/linux/if_link.h>
+
+#include <uapi/linux/ip.h>
+#include <uapi/linux/icmp.h>
+
 #include <uapi/linux/ipv6.h>
 #include <uapi/linux/icmpv6.h>
 
@@ -139,7 +143,10 @@ private:
 };
 
 XdpFlow_impl::XdpFlow_impl() {
-  struct bpf_object *objProgram;
+  
+  std::cout << "XdpFlow_impl start" << std::endl;
+  
+  struct bpf_object* objProgram;
   int prog_fd;
 
   void *packet_buffer;
@@ -147,20 +154,29 @@ XdpFlow_impl::XdpFlow_impl() {
   struct rlimit rlim = {RLIM_INFINITY, RLIM_INFINITY};
 
   //m_if_index = 1; // use lo for now
-  m_if_index = 4;
+  m_if_index = 9;
   //__u32 xdp_flags( XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE );
   //__u32 xdp_flags( XDP_FLAGS_SKB_MODE  );
 
 //  struct config cfg = {
   m_config.ifindex   = -1;
   m_config.xdp_flags = XDP_FLAGS_SKB_MODE;
+  m_config.xsk_bind_flags = 0;
   m_config.do_unload = false;
 //    .filename = "",
 //    .progsec = "xdp_sock"
 //  };
   *m_config.filename = 0;
   strcpy( m_config.progsec, "xdp_sock" );
-
+  
+  struct bpf_prog_load_attr prog_load_attr = {
+    .file = "bpf/xdp_flow.o",
+    .prog_type = BPF_PROG_TYPE_XDP,
+  };
+  
+  if (bpf_prog_load_xattr(&prog_load_attr, &objProgram, &prog_fd))
+    error(1, errno, "can't load %s", prog_load_attr.file);
+  
   struct bpf_map* mapMac = bpf_object__find_map_by_name(objProgram, "map_mac");
   if (!mapMac)
     error(1, errno, "can't load map_mac");
@@ -189,14 +205,6 @@ XdpFlow_impl::XdpFlow_impl() {
   if (m_mapXsk_fd < 0)
     error(1, errno, "can't get m_mapXsk fd");
 
-  struct bpf_prog_load_attr prog_load_attr = {
-    .file = "bpf/xdp_flow.o",
-    .prog_type = BPF_PROG_TYPE_XDP,
-  };
-
-  if (bpf_prog_load_xattr(&prog_load_attr, &objProgram, &prog_fd))
-    error(1, errno, "can't load %s", prog_load_attr.file);
-
 //  static const std::string sFile( "bpf/xdp_flow.o" );
 //  if ( 0 != load_bpf_file( (char*)sFile.c_str() ) ) {
 //    std::string sError( "XdpFlow::XdpFlow load_bpf_file" );
@@ -205,7 +213,8 @@ XdpFlow_impl::XdpFlow_impl() {
 //  }
 
   // TODO: load for all interfaces, will need to be supplied with if_indexes
-  int status = bpf_set_link_xdp_fd(m_if_index, prog_fd, m_config.xdp_flags );
+  //int status = bpf_set_link_xdp_fd(m_if_index, prog_fd, m_config.xdp_flags );
+  int status = bpf_set_link_xdp_fd(m_if_index, prog_fd, 0 );
   std::cout << "*** bpf_set_link_xdp_fd status: " << status << std::endl;
 
   /* Allow unlimited locking of memory, so all memory needed for packet
@@ -243,14 +252,25 @@ XdpFlow_impl::XdpFlow_impl() {
             strerror(errno));
     exit(EXIT_FAILURE);
   }
+  
+  //
+  {
+    int key( 0 );
+    int value = xsk_socket__fd(m_xsk_socket->xsk);
+    int resultUpdate = bpf_map_update_elem( m_mapXsk_fd, &key, &value, BPF_ANY );
+    std::cout << "bpf_map_update_elem result: " << resultUpdate << std::endl;
+  }
+  
 };
 
 XdpFlow_impl::~XdpFlow_impl() {
+  std::cout << "XdpFlow_impl stopping ..." << std::endl;
   /* Cleanup */
   xsk_socket__delete(m_xsk_socket->xsk);
-  xsk_umem__delete(m_umem->umem);
+  int ret1 = xsk_umem__delete(m_umem->umem);
   //xdp_link_detach( m_config.ifindex, m_config.xdp_flags, 0);
-  bpf_set_link_xdp_fd( m_if_index, -1, 0 ); // TODO: deal with multiple interfaces
+  int ret2 = bpf_set_link_xdp_fd( m_if_index, -1, 0 ); // TODO: deal with multiple interfaces
+  std::cout << "XdpFlow_impl stopped: " << ret1 << "," << ret2 << std::endl;
 };
 
 struct XdpFlow_impl::xsk_umem_info* XdpFlow_impl::configure_xsk_umem(void *buffer, uint64_t size) {
@@ -307,6 +327,9 @@ struct XdpFlow_impl::xsk_socket_info* XdpFlow_impl::xsk_configure_socket(
   xsk_info = (struct xsk_socket_info *)calloc(1, sizeof(*xsk_info));
   if (!xsk_info)
     return NULL;
+  
+  // temporary test:
+  char ifname[] = "veth-nvpn-v90";
 
   xsk_info->umem = umem;
   xsk_cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
@@ -314,9 +337,14 @@ struct XdpFlow_impl::xsk_socket_info* XdpFlow_impl::xsk_configure_socket(
   xsk_cfg.libbpf_flags = 0;
   xsk_cfg.xdp_flags = cfg->xdp_flags;
   xsk_cfg.bind_flags = cfg->xsk_bind_flags;
-  ret = xsk_socket__create(&xsk_info->xsk, cfg->ifname,
-         cfg->xsk_if_queue, umem->umem, &xsk_info->rx,
-         &xsk_info->tx, &xsk_cfg);
+  ret = xsk_socket__create(
+     &xsk_info->xsk,
+     ifname,  //cfg->ifname,
+     0, //cfg->xsk_if_queue, // need to figure out what is best for this
+     umem->umem,
+     &xsk_info->rx,
+     &xsk_info->tx,
+     &xsk_cfg);
 
   if (ret)
     goto error_exit;
@@ -372,12 +400,17 @@ void XdpFlow_impl::PollForPackets() {
   fds[0].fd = xsk_socket__fd(m_xsk_socket->xsk);
   fds[0].events = POLLIN;
   
+  std::cout << "poll start" << std::endl;
+  
   //while(!global_exit) {
     //if (cfg->xsk_poll_mode) {
       ret = poll(fds, nfds, -1);
       //if (ret <= 0 || ret > 1)
   //      continue;
     //}
+    
+    std::cout << "poll complete" << std::endl;
+    
     if ( 1 == ret ) ReceivePackets();
     //handle_receive_packets(xsk_socket);
   //}
@@ -387,6 +420,8 @@ void XdpFlow_impl::ReceivePackets() {
   unsigned int rcvd, stock_frames, i;
   uint32_t idx_rx = 0, idx_fq = 0;
   int ret;
+  
+  std::cout << "ReceivePackets start" << std::endl;
   
   rcvd = xsk_ring_cons__peek(&m_xsk_socket->rx, RX_BATCH_SIZE, &idx_rx);
   if (!rcvd)
@@ -429,6 +464,8 @@ void XdpFlow_impl::ReceivePackets() {
   
   /* Do we need to wake up the kernel for transmission */
   CompleteTx();
+  
+  std::cout << "ReceivePackets complete" << std::endl;
 }
 
 inline __sum16 csum16_add(__sum16 csum, __be16 addend) {
@@ -456,6 +493,8 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
 * - Just return all data with MAC/IP swapped, and type set to
 *   ICMPV6_ECHO_REPLY
 * - Recalculate the icmp checksum */
+  
+  std::cout << "ProcessPacket len=" << len << std::endl;
   
   uint8_t* pkt = (uint8_t*)xsk_umem__get_data(m_xsk_socket->umem->buffer, addr);
   
@@ -507,6 +546,8 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
     //m_xsk_socket->stats.tx_packets++;
     return true;
   }
+  
+  std::cout << "ProcessPacket complete" << std::endl;
   
   return false;
 }
