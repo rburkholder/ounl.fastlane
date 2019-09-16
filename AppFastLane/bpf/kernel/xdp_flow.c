@@ -13,6 +13,12 @@
 
 // kernel module to pick and choose packets to redirect
 
+// inspiration:
+//  https://github.com/xdp-project/xdp-tutorial/blob/master/advanced03-AF_XDP/af_xdp_kern.c
+
+// Documentation:
+//   Documentation/networking/af_xdp.rst
+
 #ifndef __attribute_const__
 # define __attribute_const__
 #endif
@@ -78,11 +84,13 @@ struct bpf_map_def SEC("maps") map_xsk = {
         ##__VA_ARGS__);                 \
 })
 
-SEC("xdp")
+SEC("xdp_sock")
 int xdp_flow( struct xdp_md* ctx ) {
 
   void* pDataBgn = (void*)(long)ctx->data;
   void* pDataEnd = (void*)(long)ctx->data_end;
+  __u32 ix_rx_queue   = ctx->rx_queue_index;
+  __u32 ix_if_ingress = ctx->ingress_ifindex;
 
   struct ethhdr* phdrEthernet = pDataBgn;
   int offset = sizeof(*phdrEthernet);
@@ -131,6 +139,8 @@ int xdp_flow( struct xdp_md* ctx ) {
   else {
     *protocol_value_ptr += 1;
   }
+  
+  // *** determine if any packet pre-processing required
 
   switch ( protocolEth ) {
     case __constant_htons(ETH_P_IP): { // ipv4 protocol
@@ -142,10 +152,11 @@ int xdp_flow( struct xdp_md* ctx ) {
           bpf_printk("xdp_flow bpf_printk drop #2\n");
           return XDP_DROP;
         }
-        struct map_ipv4_key_def map_ipv4_key;
-        map_ipv4_key.if_index = ctx->ingress_ifindex;
-        map_ipv4_key.dst = phdrIpv4->daddr;
-        map_ipv4_key.src = phdrIpv4->saddr;
+        struct map_ipv4_key_def map_ipv4_key = {
+          .if_index = ix_if_ingress,
+          .dst = phdrIpv4->daddr,
+          .src = phdrIpv4->saddr,
+        };
         struct map_stats_def* map_stats_ptr = bpf_map_lookup_elem( &map_ipv4, &map_ipv4_key );
         if ( NULL == map_stats_ptr ) {
           struct map_stats_def map_stats = {
@@ -174,12 +185,24 @@ int xdp_flow( struct xdp_md* ctx ) {
       break;
   }
 
+  // need to refine this and filter on specific ip address/port number from external map filter
+  
+  /* A set entry here means that the correspnding queue_id
+   * has an active AF_XDP socket bound to it. */
+//  if ( bpf_map_lookup_elem( &map_xsk, &ix_rx_queue ) )
+    // note the return, need to check return values
+  return bpf_redirect_map( &map_xsk, ix_rx_queue, 0 );
+  
   return XDP_PASS;
 }
 
 char _license[] SEC("license") = "GPL";
 
+// eclipse:
 // cp build/cmake.debug.linux.x86_64/AppFastLane/bpf/kernel/CMakeFiles/xdp_flow.dir/xdp_flow.c.o x64/bpf/xdp_flow.o
+
+// clion:
+// cp cmake-build-debug/AppFastLane/bpf/kernel/CMakeFiles/xdp_flow.dir/xdp_flow.c.o x64/bpf/xdp_flow.o
 
 // sudo ip link set dev tap-win10-v90 xdp obj build/cmake.debug.linux.x86_64/AppFastLane/bpf/kernel/CMakeFiles/xdp_flow.dir/xdp_flow.c.o sec xdp
 // sudo ip link set dev tap-win10-v90 xdp off
@@ -200,3 +223,13 @@ char _license[] SEC("license") = "GPL";
 // XDP_REDIRECT:
 // rx_queue_index (slide 15):
 // https://people.netfilter.org/hawk/presentations/LLC2018/XDP_LLC2018_redirect.pdf
+
+// tuning network subsystem:
+//  https://blog.packagecloud.io/eng/2016/06/22/monitoring-tuning-linux-networking-stack-receiving-data/
+
+// ethtool eth0
+// ethtool -i eth0
+// ethtool -S eth0
+
+// ip link set dev eth0 xdpgeneric off
+// ip link set dev eth0 xdp off
