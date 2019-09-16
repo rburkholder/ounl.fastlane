@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <uapi/linux/if_ether.h>
+//#include <uapi/linux/if_ether.h>
  
  struct map_ipv4_key_def {
   __u32 if_index;

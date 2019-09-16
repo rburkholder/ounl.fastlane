@@ -23,16 +23,18 @@
 # define __attribute_const__
 #endif
 
-#include <uapi/linux/bpf.h>
 #include <uapi/linux/types.h>
-#include <uapi/linux/if_ether.h>
-#include <uapi/linux/if_packet.h>
-#include <uapi/linux/if_vlan.h>
-#include <uapi/linux/ip.h>
-#include <uapi/linux/ipv6.h>
-#include <uapi/linux/in.h>
-#include <bpf_helpers.h>
+#include <uapi/linux/bpf.h>
 
+#include <linux/in.h>
+#include <linux/if_ether.h>
+#include <linux/if_packet.h>
+#include <linux/if_vlan.h>
+#include <linux/ip.h>
+#include <linux/ipv6.h>
+#include <linux/in.h>
+
+#include <bpf_helpers.h>
 #include "../map_common.h"
 
 #define SEC(NAME) __attribute__((section(NAME), used))

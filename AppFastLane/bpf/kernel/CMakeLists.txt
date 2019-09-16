@@ -14,18 +14,17 @@ add_library(
 
 target_include_directories(
   sock_stats PRIVATE
-  ${SRC_LINUX}/tools/lib
-  ${SRC_LINUX}/tools/testing/selftests/bpf
-  ${SRC_LINUX}/tools/lib
-  ${SRC_LINUX}/tools/include
-  ${SRC_LINUX}/tools/perf
-  ${SRC_LINUX}/include/uapi
-  ${SRC_LINUX}/include
-  /usr/include/x86_64-linux-gnu
-#  ${SRC_LINUX}
-#  ${SRC_LINUX}/arch/x86/include/uapi
-#  ${SRC_LINUX}/arch/x86/include
-#  ${SRC_LINUX}/arch/x86/include/generated
+    ${SRC_LINUX}/tools/lib
+    ${SRC_LINUX}/tools/include
+    #  ${SRC_LINUX}/tools/perf
+    ${SRC_LINUX}/include/uapi
+    ${SRC_LINUX}/include
+    ${SRC_LINUX}/tools/testing/selftests/bpf
+    /usr/include/x86_64-linux-gnu
+    #  ${SRC_LINUX}
+    #  ${SRC_LINUX}/arch/x86/include/uapi
+    #  ${SRC_LINUX}/arch/x86/include
+    #  ${SRC_LINUX}/arch/x86/include/generated
   )
 
 target_compile_definitions(sock_stats PUBLIC __x86_64__ )
@@ -38,18 +37,17 @@ add_library(
 
 target_include_directories(
   xdp_flow PRIVATE
-  ${SRC_LINUX}/tools/lib
-  ${SRC_LINUX}/tools/testing/selftests/bpf
-  ${SRC_LINUX}/tools/lib
-  ${SRC_LINUX}/tools/include
-  ${SRC_LINUX}/tools/perf
-  ${SRC_LINUX}/include/uapi
-  ${SRC_LINUX}/include
-  /usr/include/x86_64-linux-gnu
-#  ${SRC_LINUX}
-#  ${SRC_LINUX}/arch/x86/include/uapi
-#  ${SRC_LINUX}/arch/x86/include
-#  ${SRC_LINUX}/arch/x86/include/generated
+    ${SRC_LINUX}/tools/lib
+    ${SRC_LINUX}/tools/include
+  #  ${SRC_LINUX}/tools/perf
+    ${SRC_LINUX}/include/uapi
+    ${SRC_LINUX}/include
+    ${SRC_LINUX}/tools/testing/selftests/bpf
+    /usr/include/x86_64-linux-gnu
+  #  ${SRC_LINUX}
+  #  ${SRC_LINUX}/arch/x86/include/uapi
+  #  ${SRC_LINUX}/arch/x86/include
+  #  ${SRC_LINUX}/arch/x86/include/generated
 )
 
 target_compile_definitions(xdp_flow PUBLIC __x86_64__ )
