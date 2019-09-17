@@ -19,7 +19,7 @@
 #include "XdpFlow.h"
 
 extern "C" {
-#include <tools/include/linux/compiler.h>
+//#include <tools/include/linux/compiler.h>
 
 #include <unistd.h>
 #include <error.h>
@@ -28,8 +28,7 @@ extern "C" {
 #include <sys/resource.h>
 
 #include <uapi/linux/types.h>
-//#include <uapi/linux/bpf.h>
-//#include <libbpf.h>
+#include <uapi/linux/if_packet.h>
 
 #include <bpf/bpf.h>
 #include <bpf/xsk.h>
@@ -96,6 +95,8 @@ private:
     //struct stats_record prev_stats;
   };
 
+  int m_fdRawSocket;
+
     __u32 xdp_flags;
     __u16 xsk_bind_flags;
     bool xsk_poll_mode;
@@ -115,6 +116,8 @@ private:
     return r->cached_cons - r->cached_prod;
   }
 
+  int open_raw_sock(const char *name);
+
   struct XdpFlow_impl::xsk_umem_info* configure_xsk_umem(void* buffer, uint64_t size) ;
   uint64_t xsk_alloc_umem_frame(struct xsk_socket_info* xsk);
   void xsk_free_umem_frame( struct xsk_socket_info* xsk, uint64_t frame );
@@ -130,6 +133,8 @@ private:
 XdpFlow_impl::XdpFlow_impl() {
 
   std::cout << "XdpFlow_impl start" << std::endl;
+
+  open_raw_sock( "lo" );
 
   struct bpf_object* objProgram;
 
@@ -178,7 +183,7 @@ XdpFlow_impl::XdpFlow_impl() {
   if (fd_prog_egress < 0 || fd_prog_ingress < 0) {
     std::string sError( "bpf_prog_load: " );
     sError += strerror(errno);
-    throw( sError );
+    throw std::runtime_error( sError );
   }
 
   m_mapMac_fd = bpf_object__find_map_fd_by_name( objProgram, "map_mac" );
@@ -252,12 +257,44 @@ XdpFlow_impl::XdpFlow_impl() {
 XdpFlow_impl::~XdpFlow_impl() {
   std::cout << "XdpFlow_impl stopping ..." << std::endl;
   /* Cleanup */
+  close(m_fdRawSocket);
+
   xsk_socket__delete(m_xsk_socket->xsk);
   int ret1 = xsk_umem__delete(m_umem->umem);
   //xdp_link_detach( m_config.ifindex, m_config.xdp_flags, 0);
   int ret2 = bpf_set_link_xdp_fd( m_if_index, -1, 0 ); // TODO: deal with multiple interfaces
   std::cout << "XdpFlow_impl stopped: " << ret1 << "," << ret2 << std::endl;
 };
+
+// samples/bpf/sock_example.h
+// https://linux.die.net/man/7/packet
+int XdpFlow_impl::open_raw_sock(const char *name)
+{
+  struct sockaddr_ll sll;
+
+  m_fdRawSocket = socket( AF_PACKET, SOCK_RAW | SOCK_NONBLOCK | SOCK_CLOEXEC, htons(ETH_P_ALL));
+  //m_fdRawSocket = socket( AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+  if (m_fdRawSocket < 0) {
+    std::string sError( "m_fdRawSocket: " );
+    sError += strerror(errno);
+    throw std::runtime_error( sError );
+  }
+/*
+  memset(&sll, 0, sizeof(sll));
+  sll.sll_family = AF_PACKET;
+  sll.sll_ifindex = if_nametoindex(name);
+  sll.sll_protocol = htons(ETH_P_ALL);
+  if (bind(m_fdRawSocket, (struct sockaddr *)&sll, sizeof(sll)) < 0) {
+    close(m_fdRawSocket);
+    std::string sError( "m_fdRawSocket bind to " );
+    sError += name;
+    sError += " failed with ";
+    sError += strerror(errno);
+    throw std::runtime_error( sError );
+  }
+*/
+  return m_fdRawSocket;
+}
 
 struct XdpFlow_impl::xsk_umem_info* XdpFlow_impl::configure_xsk_umem(void *buffer, uint64_t size) {
 
@@ -578,54 +615,96 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
                 << (uint16_t)pHdrIcmp->type << "," << (uint16_t)pHdrIcmp->code
                 << "," << ntohs(pHdrIcmp->un.echo.id) << "," << ntohs(pHdrIcmp->un.echo.sequence)
                 << std::endl;
-              if ( ICMP_ECHO == pHdrIcmp->type ) {
+              switch ( pHdrIcmp->type ) {
+                case ICMP_ECHO: {
+                    std::cout << "ipv4 icmp echo detected" << std::endl;
 
-                std::cout << "ipv4 icmp detected" << std::endl;
+                    memcpy(tmp_mac, pHdrEth->h_dest, ETH_ALEN);
+                    memcpy(pHdrEth->h_dest, pHdrEth->h_source, ETH_ALEN);
+                    memcpy(pHdrEth->h_source, tmp_mac, ETH_ALEN);
 
-                memcpy(tmp_mac, pHdrEth->h_dest, ETH_ALEN);
-                memcpy(pHdrEth->h_dest, pHdrEth->h_source, ETH_ALEN);
-                memcpy(pHdrEth->h_source, tmp_mac, ETH_ALEN);
+                    uint32_t ip = pHdrIpv4->daddr;
+                    pHdrIpv4->daddr = pHdrIpv4->saddr;
+                    pHdrIpv4->saddr = ip;
 
-                uint32_t ip = pHdrIpv4->daddr;
-                pHdrIpv4->daddr = pHdrIpv4->saddr;
-                pHdrIpv4->saddr = ip;
+                    pHdrIcmp->type = ICMP_ECHOREPLY;
 
-                pHdrIcmp->type = ICMP_ECHOREPLY;
+                    csum_replace2(&pHdrIcmp->checksum,
+                                  htons(ICMP_ECHO << 8),
+                                  htons(ICMP_ECHOREPLY << 8));
 
-                csum_replace2(&pHdrIcmp->checksum,
-                              htons(ICMP_ECHO << 8),
-                              htons(ICMP_ECHOREPLY << 8));
+                    /* Here we sent the packet out of the receive port. Note that
+                     * we allocate one entry and schedule it. Your design would be
+                     * faster if you do batch processing/transmission */
 
-                /* Here we sent the packet out of the receive port. Note that
-                 * we allocate one entry and schedule it. Your design would be
-                 * faster if you do batch processing/transmission */
+                    uint32_t tx_idx = 0;
 
-                uint32_t tx_idx = 0;
+                    int ret = xsk_ring_prod__reserve(&m_xsk_socket->tx, 1, &tx_idx);
+                    if (ret != 1) {
+                      /* No more transmit slots, drop the packet */
+                      return false;
+                    }
 
-                int ret = xsk_ring_prod__reserve(&m_xsk_socket->tx, 1, &tx_idx);
-                if (ret != 1) {
-                  /* No more transmit slots, drop the packet */
-                  return false;
-                }
+                    xsk_ring_prod__tx_desc(&m_xsk_socket->tx, tx_idx)->addr = addr;
+                    xsk_ring_prod__tx_desc(&m_xsk_socket->tx, tx_idx)->len = len;
+                    xsk_ring_prod__submit(&m_xsk_socket->tx, 1);
+                    m_xsk_socket->outstanding_tx++;
 
-                xsk_ring_prod__tx_desc(&m_xsk_socket->tx, tx_idx)->addr = addr;
-                xsk_ring_prod__tx_desc(&m_xsk_socket->tx, tx_idx)->len = len;
-                xsk_ring_prod__submit(&m_xsk_socket->tx, 1);
-                m_xsk_socket->outstanding_tx++;
+                    //m_xsk_socket->stats.tx_bytes += len;
+                    //m_xsk_socket->stats.tx_packets++;
+                    //return true;
 
-                //m_xsk_socket->stats.tx_bytes += len;
-                //m_xsk_socket->stats.tx_packets++;
-                //return true;
+                    bResult = true;
+                  }
+                  break;
+                case ICMP_ECHOREPLY: {
+                    // http://hacked10bits.blogspot.com/2011/12/sending-raw-ethernet-frames-in-6-easy.html
+                    // issues with sending to local application, but works to container
+                    // seen coming out of lo, but doesn't hit application
+                    // create intermediate ifb or veth interface for this traffic?
+                    std::cout << "ipv4 icmp echo reply detected" << std::endl;
+                    ssize_t result {};
 
-                bResult = true;
+                    struct sockaddr_ll laddr;
+                    struct iovec iov[2];
+                    struct msghdr hdr;
 
+                    memset( &laddr, 0, sizeof( struct sockaddr_ll) );
+                    laddr.sll_family = PF_PACKET;
+                    laddr.sll_ifindex = 1;
+                    //laddr.sll_protocol = ((struct ethhdr*)pkt)->h_proto;
+                    laddr.sll_halen = ETH_ALEN;
+                    memcpy( laddr.sll_addr, ((struct ethhdr*)pkt)->h_dest, ETH_ALEN );
+
+                    iov[0].iov_base = pkt;
+                    iov[0].iov_len = sizeof( struct ethhdr );
+                    iov[1].iov_base = pkt + sizeof( struct ethhdr );
+                    iov[1].iov_len = len - sizeof( struct ethhdr );
+
+                    memset(&hdr, 0, sizeof(struct msghdr) );
+                    hdr.msg_iov = iov;
+                    hdr.msg_iovlen = 2;
+                    hdr.msg_name = &laddr;
+                    hdr.msg_namelen = sizeof( struct sockaddr_ll );
+                    std::cout << "sendmsg clear: " << result << "=" << strerror(errno) << std::endl;
+                    result = sendmsg( m_fdRawSocket, &hdr, 0 );
+                    //ssize = sendto( m_fdRawSocket, pkt, len, 0, (struct sockaddr*)&laddr, sizeof( struct sockaddr_ll ) );
+                    //if ( 0 > ssize ) {
+                    std::cout << "sendmsg: " << result << "=" << strerror(errno) << std::endl;
+                    //}
+                    //else {
+                    //  std::cout << "sendmsg: " << ssize << std::endl;
+                    //}
+                  }
+                  break;
+                default:
+                  break;
               }
             }
           }
         }
       }
     }
-
   }
 
   std::cout << "ProcessPacket complete" << std::endl;
