@@ -96,25 +96,9 @@ private:
     //struct stats_record prev_stats;
   };
 
-//  struct config {
     __u32 xdp_flags;
-//    int ifindex;
-//    char *ifname;
-//    char ifname_buf[IF_NAMESIZE];
-//    int redirect_ifindex;
-//    char *redirect_ifname;
-//    char redirect_ifname_buf[IF_NAMESIZE];
-//    bool do_unload;
-//    bool reuse_maps;
-//    char pin_dir[512];
-//    char filename[512];
-//    char progsec[32];
-//    char src_mac[18];
-//    char dest_mac[18];
     __u16 xsk_bind_flags;
-//    int xsk_if_queue;
     bool xsk_poll_mode;
-//  } m_config;
 
   int m_if_index;
 
@@ -161,20 +145,11 @@ XdpFlow_impl::XdpFlow_impl() {
 
   //m_if_index = 1; // use lo for now
   m_if_index = 13;
+
   //__u32 xdp_flags( XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE );
   //__u32 xdp_flags( XDP_FLAGS_SKB_MODE  );
-
-//  struct config cfg = {
-//  m_config.ifindex   = -1;
-//  m_config.xdp_flags = XDP_FLAGS_SKB_MODE;
   xdp_flags = XDP_FLAGS_SKB_MODE;
   xsk_bind_flags = 0;
-//  m_config.do_unload = false;
-//    .filename = "",
-//    .progsec = "xdp_sock"
-//  };
-//  *m_config.filename = 0;
-//  strcpy( m_config.progsec, "xdp_sock_ingress" );
 
 //  struct bpf_prog_load_attr prog_load_attr = {
 //    .file = "bpf/xdp_flow.o",
@@ -206,34 +181,18 @@ XdpFlow_impl::XdpFlow_impl() {
     throw( sError );
   }
 
-//  struct bpf_map* mapMac = bpf_object__find_map_by_name(objProgram, "map_mac");
-//  if (!mapMac)
-//    error(1, errno, "can't load map_mac");
-//  m_mapMac_fd = bpf_map__fd(mapMac);
   m_mapMac_fd = bpf_object__find_map_fd_by_name( objProgram, "map_mac" );
   if (m_mapMac_fd < 0)
     error(1, errno, "can't get map_mac fd");
 
-//  struct bpf_map* mapProtocol = bpf_object__find_map_by_name(objProgram, "map_protocol_stats");
-//  if (!mapProtocol)
-//    error(1, errno, "can't load map_protocol_stats");
-//  m_mapProtocol_fd = bpf_map__fd(mapProtocol);
   m_mapProtocol_fd = bpf_object__find_map_fd_by_name( objProgram, "map_protocol_stats" );
   if (m_mapProtocol_fd < 0)
     error(1, errno, "can't get map_protocol_stats fd");
 
-//  struct bpf_map* mapIpv4 = bpf_object__find_map_by_name(objProgram, "map_ipv4");
-//  if (!mapIpv4)
-//    error(1, errno, "can't load map_ipv4_stats");
-//  m_mapIpv4_fd = bpf_map__fd(mapIpv4);
   m_mapIpv4_fd = bpf_object__find_map_fd_by_name( objProgram, "map_ipv4" );
   if (m_mapIpv4_fd < 0)
     error(1, errno, "can't get map_ipv4_stats fd");
 
-//  struct bpf_map* mapXsk = bpf_object__find_map_by_name(objProgram, "map_xsk");
-//  if (!mapXsk)
-//    error(1, errno, "can't load map_xsk");
-//  m_mapXsk_fd = bpf_map__fd(mapXsk);
   m_mapXsk_fd = bpf_object__find_map_fd_by_name( objProgram, "map_xsk" );
   if (m_mapXsk_fd < 0)
     error(1, errno, "can't get m_mapXsk fd");
@@ -266,7 +225,6 @@ XdpFlow_impl::XdpFlow_impl() {
   }
 
   /* Open and configure the AF_XDP (xsk) socket */
-//  m_config.ifindex = m_if_index;  // TODO: deal with this if there is a loop
   //m_xsk_socket = xsk_configure_socket(&m_config, m_umem);
   m_xsk_socket = xsk_configure_socket();
   if ( m_xsk_socket == NULL) {
