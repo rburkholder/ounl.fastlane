@@ -48,6 +48,7 @@ extern "C" {
 #include <uapi/linux/icmpv6.h>
 
 #include <samples/bpf/bpf_load.h>
+
 }
 
 // example:
@@ -55,7 +56,6 @@ extern "C" {
 // https://github.com/pabeni/xdp_walkthrough_examples/tree/master/sample_3_1
 
 #include <AppFastLane/bpf/map_common.h>
-#include <linux/icmp.h>
 
 #define NUM_FRAMES         4096
 #define FRAME_SIZE         XSK_UMEM__DEFAULT_FRAME_SIZE
@@ -136,7 +136,7 @@ private:
   void xsk_free_umem_frame( struct xsk_socket_info* xsk, uint64_t frame );
   uint64_t xsk_umem_free_frames(struct xsk_socket_info* xsk);
   struct xsk_socket_info* xsk_configure_socket();
-  
+
   void ReceivePackets();
   bool ProcessPacket( uint64_t addr, uint32_t len );
   void CompleteTx();
@@ -144,14 +144,14 @@ private:
 };
 
 XdpFlow_impl::XdpFlow_impl() {
-  
+
   std::cout << "XdpFlow_impl start" << std::endl;
-  
+
   struct bpf_object* objProgram;
-  
+
   struct bpf_program* program_egress;
   int fd_prog_egress;
-  
+
   struct bpf_program* program_ingress;
   int fd_prog_ingress;
 
@@ -180,19 +180,19 @@ XdpFlow_impl::XdpFlow_impl() {
 //    .file = "bpf/xdp_flow.o",
 //    .prog_type = BPF_PROG_TYPE_XDP,
 //  };
-  
+
   char prog_file_name[] = "bpf/xdp_flow.o";
-  
+
 //  if (bpf_prog_load_xattr(&prog_load_attr, &objProgram, &fd_prog_ingress))
 //    error(1, errno, "can't load %s", prog_load_attr.file);
 
   if ( bpf_prog_load( prog_file_name, BPF_PROG_TYPE_XDP, &objProgram, &fd_prog_egress) ) {
     error(1, errno, "can't load %s", prog_file_name );
   }
-  
+
   program_egress = bpf_program__next(NULL, objProgram);
   program_ingress = bpf_program__next(program_egress, objProgram);
-  
+
   if (!program_egress || !program_ingress) {
     throw( "finding a prog in obj file failed");
   }
@@ -205,7 +205,7 @@ XdpFlow_impl::XdpFlow_impl() {
     sError += strerror(errno);
     throw( sError );
   }
-  
+
 //  struct bpf_map* mapMac = bpf_object__find_map_by_name(objProgram, "map_mac");
 //  if (!mapMac)
 //    error(1, errno, "can't load map_mac");
@@ -274,21 +274,21 @@ XdpFlow_impl::XdpFlow_impl() {
             strerror(errno));
     exit(EXIT_FAILURE);
   }
-  
+
   {
     int key( 0 );
     int value = xsk_socket__fd(m_xsk_socket->xsk);
     int resultUpdate = bpf_map_update_elem( m_mapXsk_fd, &key, &value, BPF_ANY );
     std::cout << "bpf_map_update_elem result: " << resultUpdate << std::endl;
   }
-  
+
   // TODO: load for all interfaces, will need to be supplied with if_indexes
   //int status = bpf_set_link_xdp_fd(m_if_index, fd_prog_ingress, m_config.xdp_flags );
   int status;
   status = bpf_set_link_xdp_fd(m_if_index, -1, 0 );
   status = bpf_set_link_xdp_fd(m_if_index, fd_prog_ingress, xdp_flags );
   std::cout << "*** bpf_set_link_xdp_fd status: " << status << std::endl;
-  
+
 };
 
 XdpFlow_impl::~XdpFlow_impl() {
@@ -353,7 +353,7 @@ struct XdpFlow_impl::xsk_socket_info* XdpFlow_impl::xsk_configure_socket()
   xsk_info = (struct xsk_socket_info *)calloc(1, sizeof(*xsk_info));
   if (!xsk_info)
     return NULL;
-  
+
   // temporary test:
   char ifname[] = "veth-nvpn-v90";
 
@@ -421,22 +421,22 @@ void emit( __u32 addr ) {
 void XdpFlow_impl::PollForPackets() {
   struct pollfd fds[2];
   int ret, nfds = 1;
-  
+
   memset(fds, 0, sizeof(fds));
   fds[0].fd = xsk_socket__fd(m_xsk_socket->xsk);
   fds[0].events = POLLIN;
-  
+
   std::cout << "poll start" << std::endl;
-  
+
   //while(!global_exit) {
     //if (cfg->xsk_poll_mode) {
       ret = poll(fds, nfds, -1);
       //if (ret <= 0 || ret > 1)
   //      continue;
     //}
-    
+
     std::cout << "poll complete" << std::endl;
-    
+
     if ( 1 == ret ) ReceivePackets();
     //handle_receive_packets(xsk_socket);
   //}
@@ -446,57 +446,57 @@ void XdpFlow_impl::ReceivePackets() {
   unsigned int rcvd, stock_frames, i;
   uint32_t idx_rx = 0, idx_fq = 0;
   int ret;
-  
+
   std::cout << "ReceivePackets start" << std::endl;
-  
+
   rcvd = xsk_ring_cons__peek(&m_xsk_socket->rx, RX_BATCH_SIZE, &idx_rx);
   if (!rcvd)
     return;
-  
+
   /* Stuff the ring with as much frames as possible */
   stock_frames = xsk_prod_nb_free(&m_xsk_socket->umem->fq,
                                   xsk_umem_free_frames(m_xsk_socket));
-  
+
   if (stock_frames > 0) {
-    
+
     ret = xsk_ring_prod__reserve(&m_xsk_socket->umem->fq, stock_frames,
                                  &idx_fq);
-    
+
     /* This should not happen, but just in case */
     while (ret != stock_frames)
       ret = xsk_ring_prod__reserve(&m_xsk_socket->umem->fq, rcvd,
                                    &idx_fq);
-    
+
     for (i = 0; i < stock_frames; i++)
       *xsk_ring_prod__fill_addr(&m_xsk_socket->umem->fq, idx_fq++) =
         xsk_alloc_umem_frame(m_xsk_socket);
-    
+
     xsk_ring_prod__submit(&m_xsk_socket->umem->fq, stock_frames);
   }
-  
+
   /* Process received packets */
   for (i = 0; i < rcvd; i++) {
     uint64_t addr = xsk_ring_cons__rx_desc(&m_xsk_socket->rx, idx_rx)->addr;
     uint32_t len = xsk_ring_cons__rx_desc(&m_xsk_socket->rx, idx_rx++)->len;
-    
+
     if (!ProcessPacket(addr, len))
       xsk_free_umem_frame(m_xsk_socket, addr);
-  
+
     //m_xsk_socket->stats.rx_bytes += len;
   }
-  
+
   xsk_ring_cons__release(&m_xsk_socket->rx, rcvd);
   //m_xsk_socket->stats.rx_packets += rcvd;
-  
+
   /* Do we need to wake up the kernel for transmission */
   CompleteTx();
-  
+
   std::cout << "ReceivePackets complete" << std::endl;
 }
 
 inline __sum16 csum16_add(__sum16 csum, __be16 addend) {
   uint16_t res = (uint16_t)csum;
-  
+
   res += (__u16)addend;
   return (__sum16)(res + (res < (__u16)addend));
 }
@@ -510,7 +510,7 @@ inline void csum_replace2(__sum16 *sum, __be16 old, __be16 new_) {
 }
 
 bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
-  
+
   /* Lesson#3: Write an IPv6 ICMP ECHO parser to send responses
 *
 * Some assumptions to make it easier:
@@ -519,13 +519,13 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
 * - Just return all data with MAC/IP swapped, and type set to
 *   ICMPV6_ECHO_REPLY
 * - Recalculate the icmp checksum */
-  
+
   std::cout << "ProcessPacket len=" << len << std::endl;
-  
+
   bool bResult( false );
-  
+
   uint8_t* pkt = (uint8_t*)xsk_umem__get_data(m_xsk_socket->umem->buffer, addr);
-  
+
   if ( false ) {
     int ret;
     uint32_t tx_idx = 0;
@@ -534,58 +534,58 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
     struct ethhdr *eth = (struct ethhdr *) pkt;
     struct ipv6hdr *ipv6 = (struct ipv6hdr *) (eth + 1);
     struct icmp6hdr *icmp = (struct icmp6hdr *) (ipv6 + 1);
-    
+
     if (ntohs(eth->h_proto) != ETH_P_IPV6 ||
         len < (sizeof(*eth) + sizeof(*ipv6) + sizeof(*icmp)) ||
         ipv6->nexthdr != IPPROTO_ICMPV6 ||
         icmp->icmp6_type != ICMPV6_ECHO_REQUEST)
       return false;
-    
+
     memcpy(tmp_mac, eth->h_dest, ETH_ALEN);
     memcpy(eth->h_dest, eth->h_source, ETH_ALEN);
     memcpy(eth->h_source, tmp_mac, ETH_ALEN);
-    
+
     memcpy(&tmp_ip, &ipv6->saddr, sizeof(tmp_ip));
     memcpy(&ipv6->saddr, &ipv6->daddr, sizeof(tmp_ip));
     memcpy(&ipv6->daddr, &tmp_ip, sizeof(tmp_ip));
-    
+
     icmp->icmp6_type = ICMPV6_ECHO_REPLY;
-    
+
     csum_replace2(&icmp->icmp6_cksum,
                   htons(ICMPV6_ECHO_REQUEST << 8),
                   htons(ICMPV6_ECHO_REPLY << 8));
-    
+
     /* Here we sent the packet out of the receive port. Note that
      * we allocate one entry and schedule it. Your design would be
      * faster if you do batch processing/transmission */
-    
+
     ret = xsk_ring_prod__reserve(&m_xsk_socket->tx, 1, &tx_idx);
     if (ret != 1) {
       /* No more transmit slots, drop the packet */
       return false;
     }
-    
+
     xsk_ring_prod__tx_desc(&m_xsk_socket->tx, tx_idx)->addr = addr;
     xsk_ring_prod__tx_desc(&m_xsk_socket->tx, tx_idx)->len = len;
     xsk_ring_prod__submit(&m_xsk_socket->tx, 1);
     m_xsk_socket->outstanding_tx++;
-  
+
     //m_xsk_socket->stats.tx_bytes += len;
     //m_xsk_socket->stats.tx_packets++;
     //return true;
-    
+
     bResult = true;
   }
-  
+
   if ( true ) {
     uint32_t size {};
     uint8_t tmp_mac[ETH_ALEN];
-    
+
     std::cout
       << "packet: "
       << HexDump<unsigned char*>( pkt, pkt + len, ':' )
       << std::endl;
-  
+
     size += sizeof( struct ethhdr );
     if ( size <= len ) {
       struct ethhdr* pHdrEth = (struct ethhdr *) pkt;
@@ -621,44 +621,44 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
                 << "," << ntohs(pHdrIcmp->un.echo.id) << "," << ntohs(pHdrIcmp->un.echo.sequence)
                 << std::endl;
               if ( ICMP_ECHO == pHdrIcmp->type ) {
-                
+
                 std::cout << "ipv4 icmp detected" << std::endl;
-                
+
                 memcpy(tmp_mac, pHdrEth->h_dest, ETH_ALEN);
                 memcpy(pHdrEth->h_dest, pHdrEth->h_source, ETH_ALEN);
                 memcpy(pHdrEth->h_source, tmp_mac, ETH_ALEN);
-                
+
                 uint32_t ip = pHdrIpv4->daddr;
                 pHdrIpv4->daddr = pHdrIpv4->saddr;
                 pHdrIpv4->saddr = ip;
-  
+
                 pHdrIcmp->type = ICMP_ECHOREPLY;
-  
+
                 csum_replace2(&pHdrIcmp->checksum,
                               htons(ICMP_ECHO << 8),
                               htons(ICMP_ECHOREPLY << 8));
-                
+
                 /* Here we sent the packet out of the receive port. Note that
                  * we allocate one entry and schedule it. Your design would be
                  * faster if you do batch processing/transmission */
-  
+
                 uint32_t tx_idx = 0;
-  
+
                 int ret = xsk_ring_prod__reserve(&m_xsk_socket->tx, 1, &tx_idx);
                 if (ret != 1) {
                   /* No more transmit slots, drop the packet */
                   return false;
                 }
-  
+
                 xsk_ring_prod__tx_desc(&m_xsk_socket->tx, tx_idx)->addr = addr;
                 xsk_ring_prod__tx_desc(&m_xsk_socket->tx, tx_idx)->len = len;
                 xsk_ring_prod__submit(&m_xsk_socket->tx, 1);
                 m_xsk_socket->outstanding_tx++;
-  
+
                 //m_xsk_socket->stats.tx_bytes += len;
                 //m_xsk_socket->stats.tx_packets++;
                 //return true;
-  
+
                 bResult = true;
 
               }
@@ -667,35 +667,35 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
         }
       }
     }
-    
+
   }
-  
+
   std::cout << "ProcessPacket complete" << std::endl;
-  
+
   return bResult;
 }
 
 void XdpFlow_impl::CompleteTx() {
   unsigned int completed;
   uint32_t idx_cq;
-  
+
   if (!m_xsk_socket->outstanding_tx)
     return;
-  
+
   sendto(xsk_socket__fd(m_xsk_socket->xsk), NULL, 0, MSG_DONTWAIT, NULL, 0);
-  
-  
+
+
   /* Collect/free completed TX buffers */
   completed = xsk_ring_cons__peek(&m_xsk_socket->umem->cq,
                                   XSK_RING_CONS__DEFAULT_NUM_DESCS,
                                   &idx_cq);
-  
+
   if (completed > 0) {
     for (int i = 0; i < completed; i++)
       xsk_free_umem_frame(m_xsk_socket,
                           *xsk_ring_cons__comp_addr(&m_xsk_socket->umem->cq,
                                                     idx_cq++));
-    
+
     xsk_ring_cons__release(&m_xsk_socket->umem->cq, completed);
   }
 }
@@ -805,10 +805,10 @@ void XdpFlow::Start() {
 }
 
 void XdpFlow::UpdateStats( const boost::system::error_code& ) {
-  
+
   /* Receive and count packets than drop them */
   //rx_and_process(&cfg, xsk_socket);
-  
+
   //m_pXdpFlow_impl->UpdateStats();
   m_pXdpFlow_impl->PollForPackets();
 
