@@ -662,6 +662,12 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
                     // issues with sending to local application, but works to container
                     // seen coming out of lo, but doesn't hit application
                     // create intermediate ifb or veth interface for this traffic?
+                    // open a controller channel to open vswitch, when installed, for packet injection
+                    // what is faster: via controller or an interface for injection (interface needs to be trunk)
+                    // need to be able to detect ovs based ports
+                    // or not run ovs at all
+                    // TODO: determine if the umem stuff can be used here as a form of zero copy
+                    // TODO: from cache of mac addresses, be more intelligent obout interface use
                     std::cout << "ipv4 icmp echo reply detected" << std::endl;
                     ssize_t result {};
 
@@ -670,31 +676,32 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
                     struct msghdr hdr;
 
                     memset( &laddr, 0, sizeof( struct sockaddr_ll) );
-                    laddr.sll_family = PF_PACKET;
-                    laddr.sll_ifindex = 1;
+                    laddr.sll_family = AF_PACKET;
+                    laddr.sll_ifindex = 7;
                     //laddr.sll_protocol = ((struct ethhdr*)pkt)->h_proto;
                     laddr.sll_halen = ETH_ALEN;
+                    //laddr.sll_pkttype = PACKET_OUTGOING;
                     memcpy( laddr.sll_addr, ((struct ethhdr*)pkt)->h_dest, ETH_ALEN );
 
                     iov[0].iov_base = pkt;
-                    iov[0].iov_len = sizeof( struct ethhdr );
-                    iov[1].iov_base = pkt + sizeof( struct ethhdr );
-                    iov[1].iov_len = len - sizeof( struct ethhdr );
+                    iov[0].iov_len = len;
+                    //iov[0].iov_base = pkt;
+                    //iov[0].iov_len = sizeof( struct ethhdr );
+                    //iov[1].iov_base = pkt + sizeof( struct ethhdr );
+                    //iov[1].iov_len = len - sizeof( struct ethhdr );
 
                     memset(&hdr, 0, sizeof(struct msghdr) );
                     hdr.msg_iov = iov;
-                    hdr.msg_iovlen = 2;
+                    hdr.msg_iovlen = 1;
                     hdr.msg_name = &laddr;
                     hdr.msg_namelen = sizeof( struct sockaddr_ll );
-                    std::cout << "sendmsg clear: " << result << "=" << strerror(errno) << std::endl;
-                    result = sendmsg( m_fdRawSocket, &hdr, 0 );
-                    //ssize = sendto( m_fdRawSocket, pkt, len, 0, (struct sockaddr*)&laddr, sizeof( struct sockaddr_ll ) );
-                    //if ( 0 > ssize ) {
-                    std::cout << "sendmsg: " << result << "=" << strerror(errno) << std::endl;
-                    //}
-                    //else {
-                    //  std::cout << "sendmsg: " << ssize << std::endl;
-                    //}
+                    //result = sendmsg( m_fdRawSocket, &hdr, 0 );
+                    result = sendto( m_fdRawSocket, pkt, len, 0, (struct sockaddr*)&laddr, sizeof( struct sockaddr_ll ) );
+                    std::cout << "sendmsg on " << laddr.sll_ifindex << ": " << result;
+                    if ( 0 > result ) {
+                      std::cout << "=" << strerror(errno) << std::endl;
+                    }
+                    std::cout << std::endl;
                   }
                   break;
                 default:
