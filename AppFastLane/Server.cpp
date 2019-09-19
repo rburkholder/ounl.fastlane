@@ -35,8 +35,10 @@ Server::Server(
   ,const std::string &wtConfigurationFile
 )
 : Wt::WServer( argc, argv, wtConfigurationFile )
+ ,m_ePoll(EPoll::Quiescent)
  ,m_strand( m_context )
  ,m_io_work( asio::make_work_guard( m_context ) )
+ ,m_timer( m_context )
  ,m_interface(
     m_context,
     [this](const interface::link_t&& link,const struct rtnl_link_stats64& stats){ // function to receive initial interface list and statistics
@@ -191,15 +193,54 @@ Server::Server(
     */
 
   m_pBpfXdpFlow = std::make_unique<XdpFlow>( m_context );
+
+  m_ePoll = EPoll::Running;
+  asio::post( m_strand, std::bind(&Server::Poll, this ) );
 }
 
 Server::~Server() {
+
+  m_ePoll = EPoll::Stop;
+  m_timer.cancel();
+  while (EPoll::Stopped != m_ePoll );  // will this run forever?
+
   //m_pBpfSockStats.reset();
   m_pBpfXdpFlow.reset();
   m_io_work.reset();
   //m_thread.join();
   for ( std::thread& thread: m_vThread ) {
     if ( thread.joinable() ) thread.join();
+  }
+}
+
+void Server::Poll() {
+  switch ( m_ePoll ) {
+    case EPoll::Quiescent:
+      // is this reachable/relevant?  what should the operation be?
+      break;
+    case EPoll::Running: {
+        m_timer.expires_after( std::chrono::milliseconds( 200 ) );
+        m_timer.async_wait(
+          [this](const boost::system::error_code& error){
+            int status;
+            if ( error || (EPoll::Stop == m_ePoll ) ) {
+              m_ePoll = EPoll::Stopped; // does this lead to a race condition at all?
+            }
+            else {
+
+
+              asio::post( m_strand, std::bind(&Server::Poll, this ) );
+            }
+
+          });
+        }
+      break;
+    case EPoll::Stop: {
+        m_ePoll = EPoll::Stopped;
+      }
+      break;
+    case EPoll::Stopped:
+      break;
   }
 }
 

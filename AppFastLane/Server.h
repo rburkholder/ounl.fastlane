@@ -22,6 +22,7 @@
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/io_context_strand.hpp>
 #include <boost/asio/executor_work_guard.hpp>
+#include <boost/asio/steady_timer.hpp>
 
 #include <boost/signals2.hpp>
 
@@ -73,13 +74,16 @@ public:
 protected:
 private:
 
+  enum class EPoll { Quiescent, Running, Stop, Stopped } m_ePoll;
+
   using vThread_t = std::vector<std::thread>;
 
-  //std::thread m_thread;
   vThread_t m_vThread;
   asio::io_context m_context; // TODO:  convert to WServer::IOService
   asio::io_context::strand m_strand; // sync various operations on interface lists and statistics
   asio::executor_work_guard<asio::io_context::executor_type> m_io_work;
+
+  asio::steady_timer m_timer;
 
   //std::unique_ptr<SockStats> m_pBpfSockStats;
   std::unique_ptr<XdpFlow> m_pBpfXdpFlow;
@@ -98,11 +102,9 @@ private:
   using mapLink_t = std::map<int,link_t>;
   mapLink_t m_mapLink;
 
-  //ip::tcp::resolver m_resolver;
-
 //  std::unique_ptr<CassandraClient> m_pcc;
 
-//  void HandleReply( fReply_t&& fReply, vByte_t&& v );
+  void Poll();
 
 };
 
