@@ -103,6 +103,8 @@ private:
 
   int m_if_index;
 
+  int m_fd_prog_ingress;
+
   int m_mapMac_fd;
   int m_mapProtocol_fd;
   int m_mapIpv4_fd;
@@ -143,7 +145,7 @@ XdpFlow_impl::XdpFlow_impl() {
   //int fd_prog_egress;
 
   struct bpf_program* program_ingress;
-  int fd_prog_ingress;
+  //int fd_prog_ingress;
 
   void *packet_buffer;
   uint64_t packet_buffer_size;
@@ -154,7 +156,7 @@ XdpFlow_impl::XdpFlow_impl() {
 
   //__u32 xdp_flags( XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE );
   //__u32 xdp_flags( XDP_FLAGS_SKB_MODE  );
-  xdp_flags = XDP_FLAGS_SKB_MODE;
+  xdp_flags = XDP_FLAGS_SKB_MODE | XDP_FLAGS_UPDATE_IF_NOEXIST;
   xsk_bind_flags = 0;
 
   struct bpf_prog_load_attr prog_load_attr = {
@@ -164,7 +166,7 @@ XdpFlow_impl::XdpFlow_impl() {
 
   //char prog_file_name[] = "bpf/xdp_flow.o";
 
-  if (bpf_prog_load_xattr(&prog_load_attr, &objProgram, &fd_prog_ingress))
+  if (bpf_prog_load_xattr(&prog_load_attr, &objProgram, &m_fd_prog_ingress))
     error(1, errno, "can't load %s", prog_load_attr.file);
 
 //  if ( bpf_prog_load( prog_file_name, BPF_PROG_TYPE_XDP, &objProgram, &fd_prog_egress) ) {
@@ -182,7 +184,7 @@ XdpFlow_impl::XdpFlow_impl() {
    * so we're missing only the fd for dummy prog
    */
   //fd_prog_ingress = bpf_program__fd(program_ingress);
-  if ( fd_prog_ingress < 0 ) {
+  if ( m_fd_prog_ingress < 0 ) {
     std::string sError( "bpf_prog_load: " );
     sError += strerror(errno);
     throw std::runtime_error( sError );
@@ -259,8 +261,8 @@ XdpFlow_impl::XdpFlow_impl() {
   // TODO: load for all interfaces, will need to be supplied with if_indexes
   //int status = bpf_set_link_xdp_fd(m_if_index, fd_prog_ingress, m_config.xdp_flags );
   int status;
-  status = bpf_set_link_xdp_fd(m_if_index, -1, 0 );
-  status = bpf_set_link_xdp_fd(m_if_index, fd_prog_ingress, xdp_flags );
+  status = bpf_set_link_xdp_fd(m_if_index, -1, xdp_flags );
+  status = bpf_set_link_xdp_fd(m_if_index, m_fd_prog_ingress, xdp_flags );
   std::cout << "*** bpf_set_link_xdp_fd status: " << status << std::endl;
 
 };
@@ -273,7 +275,7 @@ XdpFlow_impl::~XdpFlow_impl() {
   xsk_socket__delete(m_xsk_socket->xsk);
   int ret1 = xsk_umem__delete(m_umem->umem);
   //xdp_link_detach( m_config.ifindex, m_config.xdp_flags, 0);
-  int ret2 = bpf_set_link_xdp_fd( m_if_index, -1, 0 ); // TODO: deal with multiple interfaces
+  int ret2 = bpf_set_link_xdp_fd( m_if_index, -1, xdp_flags ); // TODO: deal with multiple interfaces
   std::cout << "XdpFlow_impl stopped: " << ret1 << "," << ret2 << std::endl;
 };
 
