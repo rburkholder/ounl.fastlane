@@ -1,4 +1,4 @@
-/* 
+/*
  * File:      Server.h
  * Project:   AppFastLane
  * Author:    raymond@burkholder.net
@@ -45,7 +45,7 @@ class Server: public Wt::WServer {
 public:
 
   Server( int argc,
-          char *argv[], 
+          char *argv[],
           const std::string &wtConfigurationFile=std::string()
           );
   virtual ~Server();
@@ -69,11 +69,14 @@ public:
 
 //  void ComposeSendAwaitReply( fCompose_t&&, fReply_t&&);
 //  void ComposeSendAwaitReply( const std::string& sSessionId, fCompose_t&&, fReply_t&&);
-  
+
 protected:
 private:
 
-  std::thread m_thread;
+  using vThread_t = std::vector<std::thread>;
+
+  //std::thread m_thread;
+  vThread_t m_vThread;
   asio::io_context m_context; // TODO:  convert to WServer::IOService
   asio::io_context::strand m_strand; // sync various operations on interface lists and statistics
   asio::executor_work_guard<asio::io_context::executor_type> m_io_work;
@@ -96,7 +99,7 @@ private:
   mapLink_t m_mapLink;
 
   //ip::tcp::resolver m_resolver;
-  
+
 //  std::unique_ptr<CassandraClient> m_pcc;
 
 //  void HandleReply( fReply_t&& fReply, vByte_t&& v );

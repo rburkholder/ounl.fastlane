@@ -173,7 +173,10 @@ Server::Server(
 
   ounl::log::init_native_syslog();
 
-  m_thread = std::move( std::thread( [this ]{ m_context.run(); }) );
+  //m_thread = std::move( std::thread( [this ]{ m_context.run(); }) );
+  m_vThread.emplace_back( std::move( std::thread( [this]{m_context.run(); } ) ) );
+  m_vThread.emplace_back( std::move( std::thread( [this]{m_context.run(); } ) ) );
+  m_vThread.emplace_back( std::move( std::thread( [this]{m_context.run(); } ) ) );
 
   /*
   m_pBpfSockStats = std::make_unique<SockStats>(
@@ -194,7 +197,10 @@ Server::~Server() {
   //m_pBpfSockStats.reset();
   m_pBpfXdpFlow.reset();
   m_io_work.reset();
-  m_thread.join();
+  //m_thread.join();
+  for ( std::thread& thread: m_vThread ) {
+    if ( thread.joinable() ) thread.join();
+  }
 }
 
 void Server::GetInterfaceList( fInterfaceItem_t&& fInterfaceItem ) {
@@ -202,6 +208,7 @@ void Server::GetInterfaceList( fInterfaceItem_t&& fInterfaceItem ) {
     m_strand,
     [this,fInterfaceItem_=std::move(fInterfaceItem)](){ // thread resistant access to interface map
       for ( const mapLink_t::value_type& vt: m_mapLink ) {
+        std::cout << "interface: " << vt.second.link.if_name << std::endl;
         fInterfaceItem_( vt.first, vt.second.link.if_name );
       }
     }
