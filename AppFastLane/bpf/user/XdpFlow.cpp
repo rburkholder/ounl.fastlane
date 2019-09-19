@@ -677,7 +677,7 @@ bool XdpFlow_impl::ProcessPacket( uint64_t addr, uint32_t len ) {
 
                     memset( &laddr, 0, sizeof( struct sockaddr_ll) );
                     laddr.sll_family = AF_PACKET;
-                    laddr.sll_ifindex = 7;
+                    laddr.sll_ifindex = 1;
                     //laddr.sll_protocol = ((struct ethhdr*)pkt)->h_proto;
                     laddr.sll_halen = ETH_ALEN;
                     //laddr.sll_pkttype = PACKET_OUTGOING;
