@@ -95,7 +95,7 @@ int xdp_egress( struct xdp_md* ctx ) {
 
 SEC("xdp_sock_ingress")
 int xdp_ingress( struct xdp_md* ctx ) {
-  
+
   bpf_printk("xdp_sock_ingress\n");
 
   void* pDataBgn = (void*)(long)ctx->data;
@@ -150,22 +150,22 @@ int xdp_ingress( struct xdp_md* ctx ) {
   else {
     *protocol_value_ptr += 1;
   }
-  
+
   // *** determine if any packet pre-processing required
-  
+
   enum xdp_action action = XDP_PASS;
-  bpf_printk("xdp_flow switch:\n");
+  //bpf_printk("xdp_flow switch:\n");
 
   switch ( protocolEth ) {
     case __constant_htons(ETH_P_IP): { // ipv4 protocol
-        bpf_printk("xdp_flow ip\n");
+        //bpf_printk("xdp_flow ip\n");
         struct iphdr* phdrIpv4;
         phdrIpv4 = pDataBgn + offset; // offset after struct ethhdr
         offset += sizeof(*phdrIpv4);  // offset to after ipv4 header
         if ( pDataBgn + offset > pDataEnd ) {
           // TODO: need a drop counter here (use an index into an array for passing to user space)
           bpf_printk("xdp_flow bpf_printk drop #2\n");
-          action = XDP_DROP;
+//          action = XDP_DROP;
         }
         else {
           struct map_ipv4_key_def map_ipv4_key = {
@@ -185,14 +185,14 @@ int xdp_ingress( struct xdp_md* ctx ) {
             map_stats_ptr->packets ++;
             map_stats_ptr->bytes += pDataEnd - ( pDataBgn + offset );
           }
-          action = XDP_REDIRECT;
+//          action = XDP_REDIRECT;
         }
       }
       break;
     case __constant_htons(ETH_P_IPV6):
       break;
     case __constant_htons(ETH_P_ARP):
-      bpf_printk("xdp_flow arp\n");
+      //bpf_printk("xdp_flow arp\n");
       break;
     case __constant_htons(ETH_P_8021Q): /* 802.1Q VLAN Extended Header  */
       break;
@@ -205,11 +205,14 @@ int xdp_ingress( struct xdp_md* ctx ) {
   }
 
   // need to refine this and filter on specific ip address/port number from external map filter
-  
+
   /* A set entry here means that the correspnding queue_id
    * has an active AF_XDP socket bound to it. */
 //  if ( bpf_map_lookup_elem( &map_xsk, &ix_rx_queue ) )
 // note the return, need to check return values
+
+  action = XDP_PASS;  // force a pass for now
+
   switch ( action ) {
     case XDP_REDIRECT:
       return bpf_redirect_map( &map_xsk, ix_rx_queue, 0 );
@@ -218,7 +221,7 @@ int xdp_ingress( struct xdp_md* ctx ) {
       return action;
       break;
   }
-  
+
   return XDP_PASS;
 }
 
