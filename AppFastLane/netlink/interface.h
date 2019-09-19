@@ -57,7 +57,7 @@ public:
 protected:
 private:
 
-  enum class Poll { Quiescent, Running, Stop, Stopped } m_ePoll;
+  enum class EPoll { Quiescent, Running, Stop, Stopped } m_ePoll;
 
   fLinkInitial_t m_fLinkInitial;
   fLinkStats_t   m_fLinkStats;

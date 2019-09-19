@@ -485,7 +485,7 @@ void interface::cbCacheLinkEvent2(
 }
 
 interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, fLinkStats_t&& fLinkStats )
-: m_ePoll( Poll::Quiescent), m_cntLoops( 10 )
+: m_ePoll(EPoll::Quiescent), m_cntLoops(10 )
  ,m_context( context )
  ,m_strand( m_context )
  ,m_timer( m_context )
@@ -645,7 +645,7 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
 
   // ==== add thread for polling on sockets
 
-  m_ePoll = Poll::Running;
+  m_ePoll = EPoll::Running;
   asio::post( m_strand, std::bind( &interface::Poll, this ) );
 }
 
@@ -655,16 +655,16 @@ void interface::Poll() {
     //if ( 0 < status ) std::cout << "poll msgs=" << status << std::endl;
     //if ( 0 > status ) std::cout << "poll error=" << status << std::endl;
   switch ( m_ePoll ) {
-    case Poll::Quiescent:
+    case EPoll::Quiescent:
       break;
-    case Poll::Running:
+    case EPoll::Running:
     {
       m_timer.expires_after( std::chrono::milliseconds( 200 ) );
       m_timer.async_wait(
         [this](const boost::system::error_code& error){
           int status;
-          if ( error || ( Poll::Stop == m_ePoll ) ) {
-            m_ePoll = Poll::Stopped;
+          if ( error || (EPoll::Stop == m_ePoll ) ) {
+            m_ePoll = EPoll::Stopped;
           }
           else {
 
@@ -689,24 +689,24 @@ void interface::Poll() {
         });
       }
       break;
-    case Poll::Stop:
+    case EPoll::Stop:
     {
       int status;
       status = nl_recvmsgs_default(m_nl_sock_event);
       status = nl_recvmsgs_default(m_nl_sock_cmd);
-      m_ePoll = Poll::Stopped;
+      m_ePoll = EPoll::Stopped;
       }
       break;
-    case Poll::Stopped:
+    case EPoll::Stopped:
       break;
   }
 }
 
 interface::~interface() {
 
-  m_ePoll = Poll::Stop;
+  m_ePoll = EPoll::Stop;
   m_timer.cancel();
-  while ( Poll::Stopped != m_ePoll );  // will this run forever?
+  while (EPoll::Stopped != m_ePoll );  // will this run forever?
 
   //nl_cache_mngr_free( m_cache_link_mngr );
   //nl_cache_free( m_cache_link );
