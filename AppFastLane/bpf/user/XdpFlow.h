@@ -11,6 +11,8 @@
 #define APPFASTLANE_BPF_USER_XDPFLOW_H_
 
 #include <functional>
+#include <mutex>
+#include <condition_variable>
 
 #include <boost/asio/io_context.hpp>
 #include <boost/asio/steady_timer.hpp>
@@ -28,12 +30,14 @@ private:
 
   asio::io_context& m_context;
   asio::steady_timer m_timer;
+  bool m_bKeepGoing;
 
-  size_t m_nLoops;
+  std::mutex m_mutex;
+  std::condition_variable m_cv;
 
   std::unique_ptr<XdpFlow_impl> m_pXdpFlow_impl;
 
-  void Start();
+  void Run();
   void UpdateStats( const boost::system::error_code& );
 
 };

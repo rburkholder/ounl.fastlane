@@ -55,11 +55,14 @@ void AppFastLane::BuildInitialPage() {
   root()->clear();
 
   // ==== container: main
-  Wt::WContainerWidget* pContainer = root()->addWidget( std::make_unique<Wt::WContainerWidget>() );
-  pContainer->setStyleClass( "classInterfaceGroup" );
+  Wt::WContainerWidget* pContainerMain = root()->addWidget(std::make_unique<Wt::WContainerWidget>() );
+
+  // ==== container : row 1 with interface list and chart
+  Wt::WContainerWidget* pContainerRow1 = pContainerMain->addWidget( std::make_unique<Wt::WContainerWidget>() );
+  pContainerRow1->setStyleClass("classInterfaceGroup" );
 
   // ==== container: interface list
-  Wt::WContainerWidget* pContainerInterfaceList = pContainer->addWidget( std::make_unique<Wt::WContainerWidget>() );
+  Wt::WContainerWidget* pContainerInterfaceList = pContainerRow1->addWidget(std::make_unique<Wt::WContainerWidget>() );
   pContainerInterfaceList->setStyleClass( "classInterfaceList" );
   m_pServer->GetInterfaceList( // call into WServer, but comes back in different thread
     [this,pContainerInterfaceList](int if_index,const std::string& sInterfaceName){ // process each interface index and name
@@ -100,7 +103,7 @@ void AppFastLane::BuildInitialPage() {
     );
 
   // ==== container: chart
-  Wt::Chart::WCartesianChart* pChart = pContainer->addWidget( std::make_unique<Wt::Chart::WCartesianChart>() );
+  Wt::Chart::WCartesianChart* pChart = pContainerRow1->addWidget(std::make_unique<Wt::Chart::WCartesianChart>() );
   pChart->setStyleClass( "classInterfaceChart" );
 
   m_pModel = std::make_shared<Model1>();
@@ -133,6 +136,17 @@ void AppFastLane::BuildInitialPage() {
   std::unique_ptr<Wt::Chart::WDataSeries> pIcmp = std::make_unique<Wt::Chart::WDataSeries>( 3, Wt::Chart::SeriesType::Line );
   pChart->addSeries( std::move( pIcmp ) );
 
+  // ==== container row 2
+  Wt::WContainerWidget* pContainerRow2 = pContainerMain->addWidget( std::make_unique<Wt::WContainerWidget>() );
+
+  // ==== container mac address list and statistics:
+  Wt::WContainerWidget* pContainerMacList = pContainerRow2->addWidget( std::make_unique<Wt::WContainerWidget>() );
+
+  // ==== container ipv4 address list and statistics:
+  Wt::WContainerWidget* pContainerIpv4List = pContainerRow2->addWidget( std::make_unique<Wt::WContainerWidget>() );
+
+  // ==== container ipv6 address list and statistics:
+  Wt::WContainerWidget* pContainerIpv6List = pContainerRow2->addWidget( std::make_unique<Wt::WContainerWidget>() );
 }
 
 void AppFastLane::UpdateModel( Wt::WDateTime dt, long long tcp, long long udp, long long icmp ) {

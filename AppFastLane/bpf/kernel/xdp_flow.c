@@ -37,38 +37,36 @@
 #include <bpf_helpers.h>
 #include "../map_common.h"
 
-#define SEC(NAME) __attribute__((section(NAME), used))
-
-// pass ifindex, dst mac, src mac to userland
-struct bpf_map_def SEC("maps") map_mac = {
+// mac stats
+struct bpf_map_def SEC("maps") map_mac_stats = {
   .type = BPF_MAP_TYPE_LRU_HASH,
-  .key_size = sizeof(struct map_mac_key_def),
-  .value_size = sizeof(struct map_mac_value_def),
-  .max_entries = 1024,
+  .key_size = sizeof( mac_t ),
+  .value_size = sizeof( struct stats_t ),
+  .max_entries = 2048,
 };
 
 // packet counter for each 2 byte ethernet protocol number
 struct bpf_map_def SEC("maps") map_protocol_stats = {
   .type = BPF_MAP_TYPE_HASH,
-  .key_size = sizeof(__u16),
-  .value_size = sizeof(__u64),
+  .key_size = sizeof( __u16 ),
+  .value_size = sizeof( __u64 ),
   .max_entries = 128,
 };
 
-// pass ifindex, dst ipv4, src ipv4 stats to userland
-struct bpf_map_def SEC("maps") map_ipv4 = {
+// ipv4 stats
+struct bpf_map_def SEC("maps") map_ipv4_stats = {
   .type = BPF_MAP_TYPE_LRU_HASH,
-  .key_size = sizeof(struct map_ipv4_key_def),
-  .value_size = sizeof(struct map_stats_def),
-  .max_entries = 1024,
+  .key_size = sizeof( ipv4_t ),
+  .value_size = sizeof( struct stats_t ),
+  .max_entries = 2048,
 };
 
-// pass ifindex, dst ipv6, src ipv6 stats to userland
-struct bpf_map_def SEC("maps") map_ipv6 = {
+// ipv6 stats
+struct bpf_map_def SEC("maps") map_ipv6_stats = {
   .type = BPF_MAP_TYPE_LRU_HASH,
-  .key_size = sizeof(struct map_ipv6_key_def),
-  .value_size = sizeof(struct map_stats_def),
-  .max_entries = 1024,
+  .key_size = sizeof( struct map_ipv6_key_t ),
+  .value_size = sizeof( struct stats_t ),
+  .max_entries = 2048,
 };
 
 //AF_XDP socket (XSK)
@@ -87,16 +85,18 @@ struct bpf_map_def SEC("maps") map_xsk = {
 })
 
 // need to maintain this order of programs
-SEC( "xdp_sock_egress" )
-int xdp_egress( struct xdp_md* ctx ) {
-  bpf_printk("xdp_sock_egress\n");
-  return XDP_PASS;
-}
+//SEC("xdp_sock1")
+//int xdp_egress( struct xdp_md* ctx ) {
+//  bpf_printk("xdp_sock_egress\n");
+//  return XDP_PASS;
+//}
 
 SEC("xdp_sock_ingress")
 int xdp_ingress( struct xdp_md* ctx ) {
 
   bpf_printk("xdp_sock_ingress\n");
+
+  __u64 ns = bpf_ktime_get_ns();
 
   void* pDataBgn = (void*)(long)ctx->data;
   void* pDataEnd = (void*)(long)ctx->data_end;
@@ -113,38 +113,56 @@ int xdp_ingress( struct xdp_md* ctx ) {
     return XDP_DROP;
   }
 
-  // *** counters for mac address pairs
+  __u64 nBytesL2 = pDataEnd - pDataBgn; // TODO: is pDataEnd one beyond?
 
-  struct map_mac_key_def map_mac_key;
+  // counters for mac address
 
-  map_mac_key.if_index = ctx->ingress_ifindex;
-  __builtin_memcpy( &map_mac_key.mac_dst, phdrEthernet->h_dest, 6 );
-  __builtin_memcpy( &map_mac_key.mac_src, phdrEthernet->h_source, 6 );
+  mac_t map_mac_key;
+  struct stats_t* stats_ptr;
 
-  __u64 nBytes = pDataEnd - pDataBgn; // TODO: is pDataEnd one beyond?
-
-  struct map_mac_value_def* map_mac_value_ptr = bpf_map_lookup_elem( &map_mac, &map_mac_key );
-  if ( NULL == map_mac_value_ptr ) { // key was not found
-
-    struct map_mac_value_def map_mac_value = {
-      .packets = 1,
-      .bytes = nBytes,
+  __builtin_memcpy( map_mac_key, phdrEthernet->h_source, ETH_ALEN );
+  stats_ptr = bpf_map_lookup_elem( &map_mac_stats, &map_mac_key );
+  if ( NULL == stats_ptr ) {
+    struct stats_t stats = {
+      .if_index = ix_if_ingress,
+      .stats.rx.bytes = 0,
+      .stats.rx.packets = 0,
+      .stats.tx.bytes = nBytesL2,
+      .stats.tx.packets = 1,
     };
-
-    bpf_map_update_elem( &map_mac, &map_mac_key, &map_mac_value, BPF_ANY );
+    bpf_map_update_elem( &map_mac_stats, &map_mac_key, &stats, BPF_ANY );
   }
   else {
-    map_mac_value_ptr->bytes += nBytes;
-    map_mac_value_ptr->packets ++;
+    stats_ptr->if_index = ix_if_ingress,
+    stats_ptr->stats.tx.bytes += nBytesL2;
+    stats_ptr->stats.tx.packets ++;
+  }
+
+  __builtin_memcpy( map_mac_key, phdrEthernet->h_dest, ETH_ALEN );
+  stats_ptr = bpf_map_lookup_elem( &map_mac_stats, &map_mac_key );
+  if ( NULL == stats_ptr ) {
+    struct stats_t stats = {
+      .if_index = 0,
+      .stats.rx.bytes = nBytesL2,
+      .stats.rx.packets = 1,
+      .stats.tx.bytes = 0,
+      .stats.tx.packets = 0,
+    };
+    bpf_map_update_elem( &map_mac_stats, &map_mac_key, &stats, BPF_ANY );
+  }
+  else {
+    // TODO: check ix_if_ingress
+    stats_ptr->stats.rx.bytes += nBytesL2;
+    stats_ptr->stats.rx.packets ++;
   }
 
   // *** counters for ethernet protocol
 
   __u16 protocolEth = phdrEthernet->h_proto; // network byte order
 
-  __u64 one = 1;
   __u64* protocol_value_ptr = bpf_map_lookup_elem( &map_protocol_stats, &protocolEth );
   if ( NULL == protocol_value_ptr ) {
+    __u64 one = 1;
     bpf_map_update_elem( &map_protocol_stats, &protocolEth, &one, BPF_ANY );
   }
   else {
@@ -158,7 +176,9 @@ int xdp_ingress( struct xdp_md* ctx ) {
 
   switch ( protocolEth ) {
     case __constant_htons(ETH_P_IP): { // ipv4 protocol
+        // TODO: refactor into tail call
         //bpf_printk("xdp_flow ip\n");
+        __u64 nBytesL3 = pDataEnd - ( pDataBgn + offset ); // TODO: is pDataEnd one beyond?
         struct iphdr* phdrIpv4;
         phdrIpv4 = pDataBgn + offset; // offset after struct ethhdr
         offset += sizeof(*phdrIpv4);  // offset to after ipv4 header
@@ -168,33 +188,57 @@ int xdp_ingress( struct xdp_md* ctx ) {
 //          action = XDP_DROP;
         }
         else {
-          struct map_ipv4_key_def map_ipv4_key = {
-            .if_index = ix_if_ingress,
-            .dst = phdrIpv4->daddr,
-            .src = phdrIpv4->saddr,
-          };
-          struct map_stats_def* map_stats_ptr = bpf_map_lookup_elem( &map_ipv4, &map_ipv4_key );
-          if ( NULL == map_stats_ptr ) {
-            struct map_stats_def map_stats = {
-              .packets = 1,
-              .bytes = pDataEnd - ( pDataBgn + offset ),
+
+          struct stats_t* stats_ptr;
+
+          // ipv4 source accounting
+          stats_ptr = bpf_map_lookup_elem( &map_ipv4_stats, &phdrIpv4->saddr );
+          if ( NULL == stats_ptr ) {
+            struct stats_t stats = {
+              .if_index = ix_if_ingress,
+              .stats.rx.bytes = 0,
+              .stats.rx.packets = 0,
+              .stats.tx.bytes = nBytesL3,
+              .stats.tx.packets = 1,
             };
-            bpf_map_update_elem( &map_ipv4, &map_ipv4_key, &map_stats, BPF_ANY );
+            bpf_map_update_elem( &map_ipv4_stats, &phdrIpv4->saddr, &stats, BPF_ANY );
           }
           else {
-            map_stats_ptr->packets ++;
-            map_stats_ptr->bytes += pDataEnd - ( pDataBgn + offset );
+            stats_ptr->if_index = ix_if_ingress,
+            stats_ptr->stats.tx.bytes += nBytesL3;
+            stats_ptr->stats.tx.packets ++;
           }
-//          action = XDP_REDIRECT;
+
+          // ipv4 destination accounting
+          stats_ptr = bpf_map_lookup_elem( &map_ipv4_stats, &phdrIpv4->daddr );
+          if ( NULL == stats_ptr ) {
+            struct stats_t stats = {
+              .if_index = 0,
+              .stats.rx.bytes = nBytesL3,
+              .stats.rx.packets = 1,
+              .stats.tx.bytes = 0,
+              .stats.tx.packets = 0,
+            };
+            bpf_map_update_elem( &map_ipv4_stats, &phdrIpv4->daddr, &stats, BPF_ANY );
+          }
+          else {
+            // TODO: check ix_if_ingress
+            stats_ptr->stats.rx.bytes += nBytesL3;
+            stats_ptr->stats.rx.packets ++;
+          }
+
         }
       }
       break;
     case __constant_htons(ETH_P_IPV6):
+      // TODO: refactor into tail call
       break;
     case __constant_htons(ETH_P_ARP):
+      // TODO: map with arp based info
       //bpf_printk("xdp_flow arp\n");
       break;
     case __constant_htons(ETH_P_8021Q): /* 802.1Q VLAN Extended Header  */
+      // TODO: will need tail call to ipv4/ipv6 for statistics
       break;
     case __constant_htons(ETH_P_8021AD): /* 802.1ad Service VLAN    */
       break;

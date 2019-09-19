@@ -106,6 +106,7 @@ private:
   int m_mapMac_fd;
   int m_mapProtocol_fd;
   int m_mapIpv4_fd;
+  int m_mapIpv6_fd;
   int m_mapXsk_fd;
 
   struct xsk_umem_info* m_umem;
@@ -138,8 +139,8 @@ XdpFlow_impl::XdpFlow_impl() {
 
   struct bpf_object* objProgram;
 
-  struct bpf_program* program_egress;
-  int fd_prog_egress;
+  //struct bpf_program* program_egress;
+  //int fd_prog_egress;
 
   struct bpf_program* program_ingress;
   int fd_prog_ingress;
@@ -156,37 +157,43 @@ XdpFlow_impl::XdpFlow_impl() {
   xdp_flags = XDP_FLAGS_SKB_MODE;
   xsk_bind_flags = 0;
 
-//  struct bpf_prog_load_attr prog_load_attr = {
-//    .file = "bpf/xdp_flow.o",
-//    .prog_type = BPF_PROG_TYPE_XDP,
-//  };
+  struct bpf_prog_load_attr prog_load_attr = {
+    .file = "bpf/xdp_flow.o",
+    .prog_type = BPF_PROG_TYPE_XDP,
+  };
 
-  char prog_file_name[] = "bpf/xdp_flow.o";
+  //char prog_file_name[] = "bpf/xdp_flow.o";
 
-//  if (bpf_prog_load_xattr(&prog_load_attr, &objProgram, &fd_prog_ingress))
-//    error(1, errno, "can't load %s", prog_load_attr.file);
+  if (bpf_prog_load_xattr(&prog_load_attr, &objProgram, &fd_prog_ingress))
+    error(1, errno, "can't load %s", prog_load_attr.file);
 
-  if ( bpf_prog_load( prog_file_name, BPF_PROG_TYPE_XDP, &objProgram, &fd_prog_egress) ) {
-    error(1, errno, "can't load %s", prog_file_name );
-  }
+//  if ( bpf_prog_load( prog_file_name, BPF_PROG_TYPE_XDP, &objProgram, &fd_prog_egress) ) {
+//    error(1, errno, "can't load %s", prog_file_name );
+//  }
 
-  program_egress = bpf_program__next(NULL, objProgram);
-  program_ingress = bpf_program__next(program_egress, objProgram);
+  //program_egress = bpf_program__next(NULL, objProgram);
+  //program_ingress = bpf_program__next(NULL, objProgram);
+  //program_ingress = bpf_program__next(program_egress, objProgram);
 
-  if (!program_egress || !program_ingress) {
-    throw( "finding a prog in obj file failed");
-  }
+  //if (!program_egress || !program_ingress) {
+  //  throw( "finding a prog in obj file failed");
+  //}
   /* bpf_prog_load_xattr gives us the pointer to first prog's fd,
    * so we're missing only the fd for dummy prog
    */
-  fd_prog_ingress = bpf_program__fd(program_ingress);
-  if (fd_prog_egress < 0 || fd_prog_ingress < 0) {
+  //fd_prog_ingress = bpf_program__fd(program_ingress);
+  if ( fd_prog_ingress < 0 ) {
     std::string sError( "bpf_prog_load: " );
     sError += strerror(errno);
     throw std::runtime_error( sError );
   }
+  //if (fd_prog_egress < 0 || fd_prog_ingress < 0) {
+  //  std::string sError( "bpf_prog_load: " );
+  //  sError += strerror(errno);
+  //  throw std::runtime_error( sError );
+  //}
 
-  m_mapMac_fd = bpf_object__find_map_fd_by_name( objProgram, "map_mac" );
+  m_mapMac_fd = bpf_object__find_map_fd_by_name( objProgram, "map_mac_stats" );
   if (m_mapMac_fd < 0)
     error(1, errno, "can't get map_mac fd");
 
@@ -194,9 +201,13 @@ XdpFlow_impl::XdpFlow_impl() {
   if (m_mapProtocol_fd < 0)
     error(1, errno, "can't get map_protocol_stats fd");
 
-  m_mapIpv4_fd = bpf_object__find_map_fd_by_name( objProgram, "map_ipv4" );
+  m_mapIpv4_fd = bpf_object__find_map_fd_by_name( objProgram, "map_ipv4_stats" );
   if (m_mapIpv4_fd < 0)
     error(1, errno, "can't get map_ipv4_stats fd");
+
+  m_mapIpv6_fd = bpf_object__find_map_fd_by_name( objProgram, "map_ipv6_stats" );
+  if (m_mapIpv6_fd < 0)
+    error(1, errno, "can't get map_ipv6_stats fd");
 
   m_mapXsk_fd = bpf_object__find_map_fd_by_name( objProgram, "map_xsk" );
   if (m_mapXsk_fd < 0)
@@ -425,6 +436,9 @@ void XdpFlow_impl::PollForPackets() {
 
   //while(!global_exit) {
     //if (cfg->xsk_poll_mode) {
+
+    // TODO: needs a dedicated thread
+    //   100ms timeout to provide for timely object destruction
       ret = poll(fds, nfds, -1);
       //if (ret <= 0 || ret > 1)
   //      continue;
@@ -746,31 +760,27 @@ void XdpFlow_impl::CompleteTx() {
 
 void XdpFlow_impl::UpdateStats() {
 
-  struct map_mac_key_def mac_key_blank;
-  struct map_mac_key_def mac_key_next;
-  memset( &mac_key_blank, 0, sizeof( struct map_mac_key_def ) );
+  mac_t mac_key_blank;
+  mac_t mac_key_next;
 
-  struct map_mac_value_def mac_value;
+  struct stats_t stats;
 
   std::cout << "Emit map: mac addresses: " << std::endl;
 
+  memset( &mac_key_blank, 0, sizeof( mac_t ) );
   int status1 = bpf_map_get_next_key( m_mapMac_fd, &mac_key_blank, &mac_key_next);
   while ( 0 == status1 ) {
-    int status2 = bpf_map_lookup_elem( m_mapMac_fd, &mac_key_next, &mac_value );
+    int status2 = bpf_map_lookup_elem( m_mapMac_fd, &mac_key_next, &stats );
     if ( 0 == status2 ) {
       std::cout
         << "  "
-        << mac_key_next.if_index
-        << ","
-        << HexDump<unsigned char*>( mac_key_next.mac_dst, mac_key_next.mac_dst + ETH_ALEN, ':' )
-        << ","
-        << HexDump<unsigned char*>( mac_key_next.mac_src, mac_key_next.mac_src + ETH_ALEN, ':' )
-        //        << "," << mac_value.flags
-        << "," << mac_value.bytes
-        << "," << mac_value.packets
+        << HexDump<unsigned char*>( mac_key_next, mac_key_next + ETH_ALEN, ':' )
+        << "," << stats.if_index
+        << "," << stats.stats.rx.packets
+        << "," << stats.stats.rx.bytes
+        << "," << stats.stats.tx.packets
+        << "," << stats.stats.tx.bytes
         << std::endl;
-//      mac_value.flags = 0;
-      // status2 = bpf_map_update_elem( map_fd[0], &mac_key_next, &mac_value, BPF_EXIST );
     }
     status1 = bpf_map_get_next_key( m_mapMac_fd, &mac_key_next, &mac_key_next);
   }
@@ -785,34 +795,33 @@ void XdpFlow_impl::UpdateStats() {
   while ( 0 == status1 ) {
     int status2 = bpf_map_lookup_elem( m_mapProtocol_fd, &ethertype_next, &count );
     if ( 0 == status2 ) {
-      std::cout << std::hex << "0x" << ethertype_next << "=" << std::dec << count << std::endl;
+      std::cout
+        << "  "
+        << std::hex << "0x" << ethertype_next << "=" << std::dec << count << std::endl;
     }
     status1 = bpf_map_get_next_key( m_mapProtocol_fd, &ethertype_next, &ethertype_next );
   }
 
-  struct map_ipv4_key_def map_ipv4_key_blank = {
-    .if_index = 0,
-    .dst = 0,
-    .src = 0
-  };
+  std::cout << "Emit map: ipv4 statistics: " << std::endl;
 
-  struct map_ipv4_key_def map_ipv4_key_next = map_ipv4_key_blank;
-  struct map_stats_def map_stats;
+  ipv4_t ipv4_key_blank = 0;
+  ipv4_t ipv4_key_next = 0;
 
-  status1 = bpf_map_get_next_key( m_mapIpv4_fd, &map_ipv4_key_blank, &map_ipv4_key_next );
+  status1 = bpf_map_get_next_key( m_mapIpv4_fd, &ipv4_key_blank, &ipv4_key_next );
   while ( 0 == status1 ) {
-    int status2 = bpf_map_lookup_elem( m_mapIpv4_fd, &map_ipv4_key_next, &map_stats );
+    int status2 = bpf_map_lookup_elem( m_mapIpv4_fd, &ipv4_key_next, &stats );
     if ( 0 == status2 ) {
-      std::cout << map_ipv4_key_next.if_index << ",";
-      emit( map_ipv4_key_next.dst );
-      std::cout << ",";
-      emit( map_ipv4_key_next.src );
+      std::cout << "  ";
+      emit( ipv4_key_next );
       std::cout
-        << "," << map_stats.packets
-        << "," << map_stats.bytes
+        << "=" << stats.if_index
+        << "," << stats.stats.rx.packets
+        << "," << stats.stats.rx.bytes
+        << "," << stats.stats.tx.packets
+        << "," << stats.stats.tx.bytes
         << std::endl;
     }
-    status1 = bpf_map_get_next_key( m_mapIpv4_fd, &map_ipv4_key_next, &map_ipv4_key_next );
+    status1 = bpf_map_get_next_key( m_mapIpv4_fd, &ipv4_key_next, &ipv4_key_next );
   }
 
 }
@@ -823,48 +832,49 @@ void XdpFlow_impl::UpdateStats() {
 
 XdpFlow::XdpFlow( asio::io_context& context )
 : m_context( context )
+ ,m_bKeepGoing( false )
  ,m_timer( context )
 {
   std::cout << "XdpFlow start" << std::endl;
 
   m_pXdpFlow_impl = std::make_unique<XdpFlow_impl>();
 
-  m_nLoops = 100;
-  Start();
+  m_bKeepGoing = true;
+  Run();
 
 }
 
 XdpFlow::~XdpFlow() {
   std::cout << "XdpFlow stop" << std::endl;
+  m_bKeepGoing = false;
+  std::unique_lock<std::mutex> lock(m_mutex);
+  m_timer.cancel();
+  m_cv.wait( lock );
 }
 
-void XdpFlow::Start() {
+void XdpFlow::Run() {
 
   namespace ph = std::placeholders;
 
-  //m_bFinished = false;
-
-  m_timer.expires_after( std::chrono::milliseconds( 990) );
-  m_timer.async_wait( std::bind( &XdpFlow::UpdateStats, this, ph::_1 ) );
+  if ( m_bKeepGoing ) {
+    m_timer.expires_after( std::chrono::milliseconds( 990) );
+    m_timer.async_wait( std::bind( &XdpFlow::UpdateStats, this, ph::_1 ) );
+  }
 }
 
-void XdpFlow::UpdateStats( const boost::system::error_code& ) {
+void XdpFlow::UpdateStats( const boost::system::error_code& ec ) {
 
-  /* Receive and count packets than drop them */
-  //rx_and_process(&cfg, xsk_socket);
-
-  //m_pXdpFlow_impl->UpdateStats();
-  m_pXdpFlow_impl->PollForPackets();
-
-  if ( 0 != m_nLoops ) {
-    m_nLoops--;
-    if ( 0 != m_nLoops ) {
-      Start();
+  if ( !ec && m_bKeepGoing ) {
+    m_pXdpFlow_impl->UpdateStats();
+    //m_pXdpFlow_impl->PollForPackets(); // currently works in blocking mode
+    Run();
+  }
+  else {
+    if ( ec ) {
+      std::cerr << "XdpFlow::UpdateStats error: " << m_bKeepGoing << "," << ec.message() << std::endl;
+      if ( m_bKeepGoing ) m_bKeepGoing = false;
     }
-    else {
-      //bpf_set_link_xdp_fd( m_if_index, -1, 0 );
-    }
-
+    m_cv.notify_one();
   }
 
 }
