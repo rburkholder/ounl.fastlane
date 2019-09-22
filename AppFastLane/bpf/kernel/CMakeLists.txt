@@ -5,7 +5,7 @@ project(bpf_kernel)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-set(SRC_LINUX /usr/src/linux-5.2.14)
+set(SRC_LINUX /usr/src/linux-5.3.1)
 
 add_library(
   sock_stats OBJECT

@@ -26,7 +26,7 @@ find_package(Boost 1.69.0 REQUIRED COMPONENTS system log log_setup program_optio
 
 #message("boost lib: ${Boost_LIBRARIES}")
 
-set(SRC_LINUX /usr/src/linux-5.2.14)
+set(SRC_LINUX /usr/src/linux-5.3.1)
 
 set(
   file_h
