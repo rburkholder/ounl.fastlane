@@ -174,7 +174,7 @@ int interface::cbCmd_Msg_LinkInitial( struct nl_msg* msg, void* arg ) {
   int length( hdr->nlmsg_len );
   while (nlmsg_ok(hdr, length)) {
 
-    decodeMessageHeader( hdr );
+    //decodeMessageHeader( hdr );
 
     // where the data resides
     void* data = nlmsg_data( hdr );
@@ -248,18 +248,20 @@ int interface::cbCmd_Msg_LinkInitial( struct nl_msg* msg, void* arg ) {
 }
 
 // TODO: redo this, and remove a bunch of link code?
-int interface::cbCmd_Msg_LinkDelta( struct nl_msg* msg, void* arg ) {
+int interface::cbCmd_Msg_LinkChanges( struct nl_msg* msg, void* arg ) {
+
   interface* self = reinterpret_cast<interface*>( arg );
   BOOST_LOG_TRIVIAL(trace) << "interface::cbCmd_Msg_LinkDelta: ";
 
-  struct nlmsghdr *hdr;
-  hdr = nlmsg_hdr( msg );
+  struct nlmsghdr *hdr = nlmsg_hdr( msg );
 
   link_t linkInfo;
 
   // content of message header
   int length( hdr->nlmsg_len );
   while (nlmsg_ok(hdr, length)) {
+
+    //decodeMessageHeader( hdr );
 
     // where the data resides
     void* data = nlmsg_data( hdr );
@@ -645,7 +647,7 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
     }
 
     nl_socket_disable_seq_check(m_nl_sock_event);
-    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkDelta, this);
+    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkChanges, this);
     status = nl_connect(m_nl_sock_event, NETLINK_ROUTE);
     status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
     status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_LINK, 0);

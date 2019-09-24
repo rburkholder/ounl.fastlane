@@ -70,7 +70,7 @@ private:
   void decodeLinkDiag( struct nl_msg* );
 
   static int cbCmd_Msg_LinkInitial(struct nl_msg* msg, void* arg);
-  static int cbCmd_Msg_LinkDelta(struct nl_msg* msg, void* arg);
+  static int cbCmd_Msg_LinkChanges(struct nl_msg* msg, void* arg);
   static int cbCmd_Msg_LinkStats(struct nl_msg* msg, void* arg);
   static int cbCmd_Msg_Finished(struct nl_msg* msg, void* arg);
 
@@ -89,7 +89,7 @@ private:
   asio::io_context& m_context;
   asio::io_context::strand m_strand;
   asio::steady_timer m_timer;
-  size_t m_cntLoops;
+  size_t m_cntLoops;  // number of loops prior to dump request
 };
 
 #endif /* APPFASTLANE_NETLINK_INTERFACE_H_ */
