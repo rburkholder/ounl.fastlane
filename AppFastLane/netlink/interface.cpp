@@ -307,6 +307,10 @@ int interface::cbCmd_Msg_LinkChanges( struct nl_msg* msg, void* arg ) {
             case IFLA_STATS64:
               // need to copy because structure is 4 byte aligned, not 8 byte aligned
               memcpy( &stats64, (struct rtnl_link_stats64*)data, sizeof( struct rtnl_link_stats64 ) );
+              //memcpy( &stats64, (struct rtnl_link_stats64*)(nla_data( attr )), sizeof( struct rtnl_link_stats64 ) );
+              //if ( nullptr != self->m_fLinkStats ) {
+              //  self->m_fLinkStats( ifinfo->ifi_index, stats64 );
+              //}
               break;
             case IFLA_ADDRESS:
               if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
@@ -342,53 +346,6 @@ int interface::cbCmd_Msg_LinkChanges( struct nl_msg* msg, void* arg ) {
         break;
     }
 
-    hdr = nlmsg_next(hdr, &length);
-  }
-
-  return NL_OK;
-}
-
-int interface::cbCmd_Msg_LinkStats( struct nl_msg* msg, void* arg ) {
-  interface* self = reinterpret_cast<interface*>( arg );
-  std::cout << "interface::cbCmd_Msg_LinkStats: " << std::endl;
-
-  struct nlmsghdr *hdr;
-  hdr = nlmsg_hdr( msg );
-
-  // content of message header
-  int length( hdr->nlmsg_len );
-  while (nlmsg_ok(hdr, length)) {
-
-    // where the data resides
-    void* data = nlmsg_data( hdr );
-    //void* tail = nlmsg_tail( hdr );
-    //int   len  = nlmsg_datalen( hdr );
-
-    // because of the command sent, this is the message type to be expected
-    ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
-
-    //assert( RTM_NEWLINK == hdr->nlmsg_type );
-
-    struct nlattr* attr;
-    attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
-
-    int remaining;
-    remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
-
-    struct rtnl_link_stats64 stats64;
-
-    while (nla_ok(attr, remaining)) {
-      if ( IFLA_STATS64 == attr->nla_type ) {
-        // need to copy because structure is 4 byte aligned, not 8 byte aligned
-        memcpy( &stats64, (struct rtnl_link_stats64*)(nla_data( attr )), sizeof( struct rtnl_link_stats64 ) );
-        if ( nullptr != self->m_fLinkStats ) {
-          self->m_fLinkStats( ifinfo->ifi_index, stats64 );
-        }
-        break;
-      }
-
-      attr = nla_next(attr, &remaining);
-    };
     hdr = nlmsg_next(hdr, &length);
   }
 
