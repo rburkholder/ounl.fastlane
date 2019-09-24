@@ -506,6 +506,45 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
 
   int status;
 
+  // ==== listen for link changes
+
+  if ( true ) {
+
+    m_nl_sock_event = nl_socket_alloc();
+    if ( nullptr == m_nl_sock_event ) {
+      throw std::runtime_error( "no netlink socket - event" );
+    }
+
+    nl_socket_disable_seq_check(m_nl_sock_event);
+    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkChanges, this);
+    status = nl_connect(m_nl_sock_event, NETLINK_ROUTE);
+    status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
+    status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_LINK, 0);
+
+  }
+
+  // ==== single message, with first message being link list
+
+  if ( true ) {
+    m_nl_sock_cmd = nl_socket_alloc();
+    if ( nullptr == m_nl_sock_cmd ) {
+      throw std::runtime_error( "no netlink socket - cmd" );
+    }
+    // auto ack set by default
+    //void nl_socket_enable_auto_ack(struct nl_sock *sk);
+    //void nl_socket_disable_auto_ack(struct nl_sock *sk);
+    status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkInitial, this);
+    status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_FINISH, NL_CB_CUSTOM, &cbCmd_Msg_Finished, this);
+    status = nl_connect(m_nl_sock_cmd, NETLINK_ROUTE);
+    status = nl_socket_set_nonblocking(m_nl_sock_cmd); // poll returns immediately
+
+    struct rtgenmsg rt_hdr = {
+      .rtgen_family = AF_UNSPEC,
+    };
+    status = nl_send_simple(m_nl_sock_cmd, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
+
+  }
+
   // ====  cache manager for link information
 
   if ( false ) {
@@ -554,28 +593,6 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
     //struct nl_dump_params* params;
   }
 
-  // ==== single message, with first message being link list
-
-  if ( true ) {
-    m_nl_sock_cmd = nl_socket_alloc();
-    if ( nullptr == m_nl_sock_cmd ) {
-      throw std::runtime_error( "no netlink socket - cmd" );
-    }
-    // auto ack set by default
-    //void nl_socket_enable_auto_ack(struct nl_sock *sk);
-    //void nl_socket_disable_auto_ack(struct nl_sock *sk);
-    status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkInitial, this);
-    status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_FINISH, NL_CB_CUSTOM, &cbCmd_Msg_Finished, this);
-    status = nl_connect(m_nl_sock_cmd, NETLINK_ROUTE);
-    status = nl_socket_set_nonblocking(m_nl_sock_cmd); // poll returns immediately
-
-    struct rtgenmsg rt_hdr = {
-      .rtgen_family = AF_UNSPEC,
-    };
-    status = nl_send_simple(m_nl_sock_cmd, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
-
-  }
-
   // ==== single message, with attribute to request only interface statistics
   //    => can't seem to only get interface statistics
 
@@ -585,7 +602,7 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
       throw std::runtime_error( "no statistics socket" );
     }
 
-    status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkDelta, this);
+    status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkChanges, this);
     status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_FINISH, NL_CB_CUSTOM, &cbCmd_Msg_Finished, this);
     status = nl_connect( m_nl_sock_statistics, NETLINK_ROUTE);
 
@@ -637,27 +654,11 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
 
   }
 
-  // ==== listen for link changes
-
-  if ( true ) {
-
-    m_nl_sock_event = nl_socket_alloc();
-    if ( nullptr == m_nl_sock_event ) {
-      throw std::runtime_error( "no netlink socket - event" );
-    }
-
-    nl_socket_disable_seq_check(m_nl_sock_event);
-    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkChanges, this);
-    status = nl_connect(m_nl_sock_event, NETLINK_ROUTE);
-    status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
-    status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_LINK, 0);
-
-  }
-
   // ==== add thread for polling on sockets
 
   m_ePoll = EPoll::Running;
   asio::post( m_strand, std::bind( &interface::Poll, this ) );
+
 }
 
 void interface::Poll() {
