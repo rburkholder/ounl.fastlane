@@ -33,37 +33,90 @@ extern "C" {
 }
 
 void decodeMessageHeader( struct nlmsghdr *hdr ) {
-  std::cout
-    << "  len=" << hdr->nlmsg_len
-    //<< ",type=" << hdr->nlmsg_type
-    << ",";
-  if ( RTM_NEWLINK == hdr->nlmsg_type ) std::cout << "RTM_NEWLINK";
-  if ( RTM_DELLINK == hdr->nlmsg_type ) std::cout << "RTM_DELLINK";
-  if ( RTM_GETLINK == hdr->nlmsg_type ) std::cout << "RTM_GETLINK";
-  if ( RTM_SETLINK == hdr->nlmsg_type ) std::cout << "RTM_SETLINK";
-  if ( RTM_NEWADDR == hdr->nlmsg_type ) std::cout << "RTM_NEWADDR";
-  if ( RTM_DELADDR == hdr->nlmsg_type ) std::cout << "RTM_DELADDR";
-  if ( RTM_GETADDR == hdr->nlmsg_type ) std::cout << "RTM_GETADDR";
-  if ( RTM_NEWROUTE == hdr->nlmsg_type ) std::cout << "RTM_NEWROUTE";
-  if ( RTM_DELROUTE == hdr->nlmsg_type ) std::cout << "RTM_DELROUTE";
-  if ( RTM_GETROUTE == hdr->nlmsg_type ) std::cout << "RTM_GETROUTE";
-  if ( RTM_NEWNEIGH == hdr->nlmsg_type ) std::cout << "RTM_NEWNEIGH";
-  if ( RTM_DELNEIGH == hdr->nlmsg_type ) std::cout << "RTM_DELNEIGH";
-  if ( RTM_GETNEIGH == hdr->nlmsg_type ) std::cout << "RTM_GETNEIGH";
-  if ( RTM_NEWRULE == hdr->nlmsg_type ) std::cout << "RTM_NEWRULE";
-  if ( RTM_DELRULE == hdr->nlmsg_type ) std::cout << "RTM_DELRULE";
-  if ( RTM_GETRULE == hdr->nlmsg_type ) std::cout << "RTM_GETRULE";
-  if ( RTM_NEWQDISC == hdr->nlmsg_type ) std::cout << "RTM_NEWQDISC";
-  if ( RTM_DELQDISC == hdr->nlmsg_type ) std::cout << "RTM_DELQDISC";
-  if ( RTM_GETQDISC == hdr->nlmsg_type ) std::cout << "RTM_GETQDISC";
-  if ( RTM_NEWTCLASS == hdr->nlmsg_type ) std::cout << "RTM_NEWTCLASS";
-  if ( RTM_DELTCLASS == hdr->nlmsg_type ) std::cout << "RTM_DELTCLASS";
-  if ( RTM_GETTCLASS == hdr->nlmsg_type ) std::cout << "RTM_GETTCLASS";
-  if ( RTM_NEWTFILTER == hdr->nlmsg_type ) std::cout << "RTM_NEWTFILTER";
-  if ( RTM_DELTFILTER == hdr->nlmsg_type ) std::cout << "RTM_DELTFILTER";
-  if ( RTM_GETTFILTER == hdr->nlmsg_type ) std::cout << "RTM_GETTFILTER";
+
+  switch ( hdr->nlmsg_type ) {
+    case RTM_NEWLINK:
+      std::cout << "RTM_NEWLINK";
+      break;
+    case RTM_DELLINK:
+      std::cout << "RTM_DELLINK";
+      break;
+    case RTM_GETLINK:
+      std::cout << "RTM_GETLINK";
+      break;
+    case RTM_SETLINK:
+      std::cout << "RTM_SETLINK";
+      break;
+    case RTM_NEWADDR:
+      std::cout << "RTM_NEWADDR";
+      break;
+    case RTM_DELADDR:
+      std::cout << "RTM_DELADDR";
+      break;
+    case RTM_GETADDR:
+      std::cout << "RTM_GETADDR";
+      break;
+    case RTM_NEWROUTE:
+      std::cout << "RTM_NEWROUTE";
+      break;
+    case RTM_DELROUTE:
+      std::cout << "RTM_DELROUTE";
+      break;
+    case RTM_GETROUTE:
+      std::cout << "RTM_GETROUTE";
+      break;
+    case RTM_NEWNEIGH:
+      std::cout << "RTM_NEWNEIGH";
+      break;
+    case RTM_DELNEIGH:
+      std::cout << "RTM_DELNEIGH";
+      break;
+    case RTM_GETNEIGH:
+      std::cout << "RTM_GETNEIGH";
+      break;
+    case RTM_NEWRULE:
+      std::cout << "RTM_NEWRULE";
+      break;
+    case RTM_DELRULE:
+      std::cout << "RTM_DELRULE";
+      break;
+    case RTM_GETRULE:
+      std::cout << "RTM_GETRULE";
+      break;
+    case RTM_NEWQDISC:
+      std::cout << "RTM_NEWQDISC";
+      break;
+    case RTM_DELQDISC:
+      std::cout << "RTM_DELQDISC";
+      break;
+    case RTM_GETQDISC:
+      std::cout << "RTM_GETQDISC";
+      break;
+    case RTM_NEWTCLASS:
+      std::cout << "RTM_NEWTCLASS";
+      break;
+    case RTM_DELTCLASS:
+      std::cout << "RTM_DELTCLASS";
+      break;
+    case RTM_GETTCLASS:
+      std::cout << "RTM_GETTCLASS";
+      break;
+    case RTM_NEWTFILTER:
+      std::cout << "RTM_NEWTFILTER";
+      break;
+    case RTM_DELTFILTER:
+      std::cout << "RTM_DELTFILTER";
+      break;
+    case RTM_GETTFILTER:
+      std::cout << "RTM_GETTFILTER";
+      break;
+    default:
+      std::cout << "RTM_?? UNKNOWN(" << hdr->nlmsg_type << ")";
+      break;
+  }
 
   std::cout
+    << ",len=" << hdr->nlmsg_len
     << ",flags=" << std::hex << hdr->nlmsg_flags << std::dec // 2=NLM_F_MULTI
     << ",seq=" << hdr->nlmsg_seq
     << ",pid=" << hdr->nlmsg_pid
@@ -112,7 +165,7 @@ int interface::cbCmd_Msg_LinkInitial( struct nl_msg* msg, void* arg ) {
   interface* self = reinterpret_cast<interface*>( arg );
   //std::cout << "interface::cbCmd_Msg_LinkInitial: " << std::endl;
 
-  struct nlmsghdr *hdr;
+  struct nlmsghdr *hdr = nullptr;
   hdr = nlmsg_hdr( msg );
 
   link_t linkInfo;
@@ -120,6 +173,8 @@ int interface::cbCmd_Msg_LinkInitial( struct nl_msg* msg, void* arg ) {
   // content of message header
   int length( hdr->nlmsg_len );
   while (nlmsg_ok(hdr, length)) {
+
+    decodeMessageHeader( hdr );
 
     // where the data resides
     void* data = nlmsg_data( hdr );
@@ -213,6 +268,7 @@ int interface::cbCmd_Msg_LinkDelta( struct nl_msg* msg, void* arg ) {
 
     // because of the command sent, this is the message type to be expected
     ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
+    decode_ifinfomsg( ifinfo );
 
     linkInfo.if_index = ifinfo->ifi_index;
 
@@ -243,6 +299,7 @@ int interface::cbCmd_Msg_LinkDelta( struct nl_msg* msg, void* arg ) {
           void* data = nla_data( attr );
           switch ( attr->nla_type ) {
             case IFLA_IFNAME:
+              //BOOST_LOG_TRIVIAL(trace) << "        IFLA_IFNAME=" << (char*)nla_data(attr);
               linkInfo.if_name = (char*)data;
               break;
             case IFLA_STATS64:
@@ -264,6 +321,11 @@ int interface::cbCmd_Msg_LinkDelta( struct nl_msg* msg, void* arg ) {
               break;
             default:
               //std::cout << "        " << attr->nla_type << " size=" << attr->nla_len << std::endl;
+              //BOOST_LOG_TRIVIAL(trace)
+              //  << "      attr: "
+              //  << "type=" << attr->nla_type
+              //  << ",len=" << attr->nla_len
+              //    ;
               break;
           }
           attr = nla_next(attr, &remaining);
@@ -275,7 +337,6 @@ int interface::cbCmd_Msg_LinkDelta( struct nl_msg* msg, void* arg ) {
       case RTM_DELLINK:
         // TODO: test what happens when loopback created in namespace
         // TOOD: test what happens as veth moved in and out of namespace
-        self->decodeLinkDiag( msg ); // TODO: fix: decodes multipart multiple times
         break;
     }
 
@@ -330,58 +391,6 @@ int interface::cbCmd_Msg_LinkStats( struct nl_msg* msg, void* arg ) {
   }
 
   return NL_OK;
-}
-
-void interface::decodeLinkDiag( struct nl_msg* msg ) {
-
-  struct nlmsghdr *hdr;
-  hdr = nlmsg_hdr( msg );
-
-  //decodeMessageHeader( hdr );
-
-  // content of message header
-  int length( hdr->nlmsg_len );
-  while (nlmsg_ok(hdr, length)) {
-
-    // where the data resides
-    void* data = nlmsg_data( hdr );
-    void* tail = nlmsg_tail( hdr );
-    int   len  = nlmsg_datalen( hdr );
-
-    // because of the command sent, this is the message type to be expected
-    ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
-    decode_ifinfomsg( ifinfo );
-
-    switch ( hdr->nlmsg_type ) {
-      case RTM_NEWLINK: {
-        struct nlattr* attr;
-        int remaining;
-        attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
-        remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
-
-        while (nla_ok(attr, remaining)) {
-          BOOST_LOG_TRIVIAL(trace)
-            << "      attr: "
-            << "type=" << attr->nla_type
-            << ",len=" << attr->nla_len
-            ;
-          void* data = nla_data( attr );
-          switch ( attr->nla_type ) {
-            case IFLA_IFNAME:
-              BOOST_LOG_TRIVIAL(trace) << "        IFLA_IFNAME=" << (char*)nla_data(attr);
-              break;
-            default:
-              BOOST_LOG_TRIVIAL(trace) << "        " << attr->nla_type << " size=" << attr->nla_len;
-              break;
-          }
-          attr = nla_next(attr, &remaining);
-        };
-        }
-        break;
-    }
-
-    hdr = nlmsg_next(hdr, &length);
-  }
 }
 
 int interface::cbCmd_Msg_Finished(struct nl_msg *msg, void *arg) {
