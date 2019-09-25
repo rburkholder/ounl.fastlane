@@ -414,6 +414,25 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
 
   int status;
 
+  // ==== listen for link changes, comes after the dump above so can do delta's against the list
+
+  if ( true ) {
+
+    m_nl_sock_event = nl_socket_alloc();
+    if ( nullptr == m_nl_sock_event ) {
+      throw std::runtime_error( "no netlink socket - event" );
+    }
+
+    nl_socket_disable_seq_check(m_nl_sock_event);
+    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Link, this);
+    status = nl_connect(m_nl_sock_event, NETLINK_ROUTE);
+    status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
+    status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_LINK, 0);
+    status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_IPV4_IFADDR, 0);
+    status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_IPV6_IFADDR, 0);
+
+  }
+
   // ==== single message, with first message being link list
 
   if ( true ) {
@@ -433,25 +452,6 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
       .rtgen_family = AF_UNSPEC,
     };
     status = nl_send_simple(m_nl_sock_cmd, RTM_GETLINK, NLM_F_DUMP, &rt_hdr, sizeof(rt_hdr));
-
-  }
-
-  // ==== listen for link changes, comes after the dump above so can do delta's against the list
-
-  if ( true ) {
-
-    m_nl_sock_event = nl_socket_alloc();
-    if ( nullptr == m_nl_sock_event ) {
-      throw std::runtime_error( "no netlink socket - event" );
-    }
-
-    nl_socket_disable_seq_check(m_nl_sock_event);
-    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Link, this);
-    status = nl_connect(m_nl_sock_event, NETLINK_ROUTE);
-    status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
-    status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_LINK, 0);
-    status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_IPV4_IFADDR, 0);
-    status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_IPV6_IFADDR, 0);
 
   }
 
