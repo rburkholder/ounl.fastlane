@@ -69,8 +69,7 @@ private:
 
   void decodeLinkDiag( struct nl_msg* );
 
-  static int cbCmd_Msg_LinkInitial(struct nl_msg* msg, void* arg);
-  static int cbCmd_Msg_LinkChanges(struct nl_msg* msg, void* arg);
+  static int cbCmd_Msg_Link(struct nl_msg* msg, void* arg);
   static int cbCmd_Msg_Finished(struct nl_msg* msg, void* arg);
 
   struct nl_cache*      m_cache_link;

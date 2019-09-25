@@ -160,19 +160,25 @@ void decode_ifinfomsg( ifinfomsg* ifinfo ) {
 
 }
 
-int interface::cbCmd_Msg_LinkInitial( struct nl_msg* msg, void* arg ) {
+//    callback will be based upon message type, and very similary
+//    with first command as initial poll, then send to another callback for subsequent polls
+//    this can be used to populate initial interface list, and can then use deltas on new and delete afterwards.
+
+// generic version of cbCmd_Msg_LinkInitial & cbCmd_Msg_LinkChanges
+int interface::cbCmd_Msg_Link( struct nl_msg* msg, void* arg ) {
+
+  BOOST_LOG_TRIVIAL(trace) << "interface::cbCmd_Msg_Link: ";
 
   interface* self = reinterpret_cast<interface*>( arg );
-  //std::cout << "interface::cbCmd_Msg_LinkInitial: " << std::endl;
-
-  struct nlmsghdr *hdr = nullptr;
-  hdr = nlmsg_hdr( msg );
+  //std::cout << "interface::cbCmd_Msg_Link: " << std::endl;
 
   link_t linkInfo;
 
+  struct nlmsghdr* hdr = nlmsg_hdr( msg );
+
   // content of message header
   int length( hdr->nlmsg_len );
-  while (nlmsg_ok(hdr, length)) {
+  while ( nlmsg_ok( hdr, length ) ) {
 
     //decodeMessageHeader( hdr );
 
@@ -181,168 +187,113 @@ int interface::cbCmd_Msg_LinkInitial( struct nl_msg* msg, void* arg ) {
     void* tail = nlmsg_tail( hdr );
     int   len  = nlmsg_datalen( hdr );
 
-    // because of the command sent, this is the message type to be expected
-    ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
-
-    linkInfo.if_index = ifinfo->ifi_index;
-
-    linkInfo.bUp      = ( IFF_UP       & ifinfo->ifi_flags );
-    linkInfo.bLowerUp = ( IFF_LOWER_UP & ifinfo->ifi_flags );
-    linkInfo.bRunning = ( IFF_RUNNING  & ifinfo->ifi_flags );
-
-    switch ( ifinfo->ifi_type ) {
-      case ARPHRD_LOOPBACK:
-        linkInfo.bLoopback = true;
-        break;
-      case ARPHRD_ETHER:
-        linkInfo.bEthernet = true;
-        break;
-    }
-
-    assert( RTM_NEWLINK == hdr->nlmsg_type );
-
-    struct nlattr* attr;
-    attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
-
-    int remaining;
-    remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
-
-    struct rtnl_link_stats64 stats64;
-
-    while (nla_ok(attr, remaining)) {
-      void* data = nla_data( attr );
-      switch ( attr->nla_type ) {
-        case IFLA_IFNAME:
-          linkInfo.if_name = (char*)data;
-          break;
-        case IFLA_STATS64:
-          // need to copy because structure is 4 byte aligned, not 8 byte aligned
-          memcpy( &stats64, (struct rtnl_link_stats64*)data, sizeof( struct rtnl_link_stats64 ) );
-          break;
-        case IFLA_ADDRESS:
-          if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
-            for ( int ix = 0; ix++; ix < 6 ) linkInfo.mac[ ix ] = ((uint8_t*)data)[ ix ];
-          }
-          break;
-        case IFLA_BROADCAST:
-          if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
-            for ( int ix = 0; ix++; ix < 6 ) linkInfo.broadcast[ ix ] = ((uint8_t*)data)[ ix ];
-          }
-          break;
-        case IFLA_QDISC:
-          linkInfo.qdisk = (char*)data;
-          break;
-        default:
-          //std::cout << "        " << attr->nla_type << " size=" << attr->nla_len << std::endl;
-          break;
-      }
-      attr = nla_next(attr, &remaining);
-    };
-
-    if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( std::move( linkInfo ), std::move( stats64 ) );
-
-    hdr = nlmsg_next(hdr, &length);
-  }
-
-  return NL_OK;
-}
-
-// TODO: redo this, and remove a bunch of link code?
-int interface::cbCmd_Msg_LinkChanges( struct nl_msg* msg, void* arg ) {
-
-  interface* self = reinterpret_cast<interface*>( arg );
-  BOOST_LOG_TRIVIAL(trace) << "interface::cbCmd_Msg_LinkDelta: ";
-
-  struct nlmsghdr *hdr = nlmsg_hdr( msg );
-
-  link_t linkInfo;
-
-  // content of message header
-  int length( hdr->nlmsg_len );
-  while (nlmsg_ok(hdr, length)) {
-
-    //decodeMessageHeader( hdr );
-
-    // where the data resides
-    void* data = nlmsg_data( hdr );
-    void* tail = nlmsg_tail( hdr );
-    int   len  = nlmsg_datalen( hdr );
-
-    // because of the command sent, this is the message type to be expected
-    ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
-    decode_ifinfomsg( ifinfo );
-
-    linkInfo.if_index = ifinfo->ifi_index;
-
-    linkInfo.bUp      = ( IFF_UP       & ifinfo->ifi_flags );
-    linkInfo.bLowerUp = ( IFF_LOWER_UP & ifinfo->ifi_flags );
-    linkInfo.bRunning = ( IFF_RUNNING  & ifinfo->ifi_flags );
-
-    switch ( ifinfo->ifi_type ) {
-      case ARPHRD_LOOPBACK:
-        linkInfo.bLoopback = true;
-        break;
-      case ARPHRD_ETHER:
-        linkInfo.bEthernet = true;
-        break;
-    }
-
-    struct nlattr* attr;
-    attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
-
-    int remaining;
-    remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
-
-    struct rtnl_link_stats64 stats64;
-
-    switch( hdr->nlmsg_type ) {
+    // http://man7.org/linux/man-pages/man7/rtnetlink.7.html
+    switch ( hdr->nlmsg_type ) {
       case RTM_NEWLINK:
-        while (nla_ok(attr, remaining)) {
-          void* data = nla_data( attr );
-          switch ( attr->nla_type ) {
-            case IFLA_IFNAME:
-              //BOOST_LOG_TRIVIAL(trace) << "        IFLA_IFNAME=" << (char*)nla_data(attr);
-              linkInfo.if_name = (char*)data;
+      case RTM_DELLINK: // much of the following is superfulous
+        {
+          ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
+          decode_ifinfomsg( ifinfo );
+
+          linkInfo.if_index = ifinfo->ifi_index;
+
+          linkInfo.bUp      = ( IFF_UP       & ifinfo->ifi_flags );
+          linkInfo.bLowerUp = ( IFF_LOWER_UP & ifinfo->ifi_flags );
+          linkInfo.bRunning = ( IFF_RUNNING  & ifinfo->ifi_flags );
+
+          switch ( ifinfo->ifi_type ) {
+            case ARPHRD_LOOPBACK:
+              linkInfo.bLoopback = true;
               break;
-            case IFLA_STATS64:
-              // need to copy because structure is 4 byte aligned, not 8 byte aligned
-              memcpy( &stats64, (struct rtnl_link_stats64*)data, sizeof( struct rtnl_link_stats64 ) );
-              //memcpy( &stats64, (struct rtnl_link_stats64*)(nla_data( attr )), sizeof( struct rtnl_link_stats64 ) );
-              //if ( nullptr != self->m_fLinkStats ) {
-              //  self->m_fLinkStats( ifinfo->ifi_index, stats64 );
-              //}
-              break;
-            case IFLA_ADDRESS:
-              if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
-                for ( int ix = 0; ix++; ix < 6 ) linkInfo.mac[ ix ] = ((uint8_t*)data)[ ix ];
-              }
-              break;
-            case IFLA_BROADCAST:
-              if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
-                for ( int ix = 0; ix++; ix < 6 ) linkInfo.broadcast[ ix ] = ((uint8_t*)data)[ ix ];
-              }
-              break;
-            case IFLA_QDISC:
-              linkInfo.qdisk = (char*)data;
-              break;
-            default:
-              //std::cout << "        " << attr->nla_type << " size=" << attr->nla_len << std::endl;
-              //BOOST_LOG_TRIVIAL(trace)
-              //  << "      attr: "
-              //  << "type=" << attr->nla_type
-              //  << ",len=" << attr->nla_len
-              //    ;
+            case ARPHRD_ETHER:
+              linkInfo.bEthernet = true;
               break;
           }
-          attr = nla_next(attr, &remaining);
-        };
 
-        //if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( std::move( linkInfo ), std::move( stats64 ) );
-        if ( nullptr != self->m_fLinkStats ) self->m_fLinkStats( ifinfo->ifi_index, stats64 );
+          struct nlattr* attr = nlmsg_attrdata( hdr, sizeof( ifinfomsg ) );
+          int remaining = nlmsg_attrlen( hdr, sizeof( ifinfomsg ) );
+
+          struct rtnl_link_stats64 stats64;
+          bool bStatsFound( false );
+
+          while (nla_ok(attr, remaining)) {
+            void* data = nla_data( attr );
+            switch ( attr->nla_type ) {
+              case IFLA_IFNAME:
+                //BOOST_LOG_TRIVIAL(trace) << "        IFLA_IFNAME=" << (char*)nla_data(attr);
+                linkInfo.if_name = (char*)data;
+                break;
+              case IFLA_STATS64:
+                // need to copy because structure is 4 byte aligned, not 8 byte aligned
+                memcpy( &stats64, (struct rtnl_link_stats64*)data, sizeof( struct rtnl_link_stats64 ) );
+                //memcpy( &stats64, (struct rtnl_link_stats64*)(nla_data( attr )), sizeof( struct rtnl_link_stats64 ) );
+                //if ( nullptr != self->m_fLinkStats ) {
+                //  self->m_fLinkStats( ifinfo->ifi_index, stats64 );
+                bStatsFound = true;
+                //}
+                break;
+              case IFLA_ADDRESS:
+                if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
+                  for ( int ix = 0; ix++; ix < 6 ) linkInfo.mac[ ix ] = ((uint8_t*)data)[ ix ];
+                }
+                break;
+              case IFLA_BROADCAST:
+                if ( linkInfo.bEthernet || linkInfo.bLoopback ) {
+                  for ( int ix = 0; ix++; ix < 6 ) linkInfo.broadcast[ ix ] = ((uint8_t*)data)[ ix ];
+                }
+                break;
+              case IFLA_QDISC:
+                linkInfo.qdisk = (char*)data;
+                break;
+              default:
+                //std::cout << "        " << attr->nla_type << " size=" << attr->nla_len << std::endl;
+                //BOOST_LOG_TRIVIAL(trace)
+                //  << "      attr: "
+                //  << "type=" << attr->nla_type
+                //  << ",len=" << attr->nla_len
+                //    ;
+                break;
+            }
+            attr = nla_next(attr, &remaining);
+          };
+
+          if ( bStatsFound ) {
+            if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( std::move( linkInfo ), std::move( stats64 ) );
+            if ( nullptr != self->m_fLinkStats ) self->m_fLinkStats( ifinfo->ifi_index, std::move( stats64 ) );
+          }
+          else {
+            std::cerr << "stats64 not found with message type " << hdr->nlmsg_type << std::endl;
+          }
+
+          // TODO: test what happens when loopback created in namespace
+          // TOOD: test what happens as veth moved in and out of namespace
+        }
         break;
-      case RTM_DELLINK:
-        // TODO: test what happens when loopback created in namespace
-        // TOOD: test what happens as veth moved in and out of namespace
+      case RTM_NEWADDR:
+      case RTM_DELADDR:
+        {
+          struct ifaddrmsg* ifaddr = reinterpret_cast<struct ifaddrmsg*>( data );
+        }
+        break;
+      case RTM_NEWROUTE:
+      case RTM_DELROUTE:
+      case RTM_NEWRULE:
+      case RTM_DELRULE:
+        {
+          struct rtmsg* route = reinterpret_cast<struct rtmsg*>( data );
+        }
+        break;
+      case RTM_NEWNEIGH:
+      case RTM_DELNEIGH:
+        {
+          struct ndmsg* neighbor = reinterpret_cast<struct ndmsg*>( data );
+        }
+        break;
+      case RTM_NEWQDISC:
+      case RTM_DELQDISC:
+        {
+          struct tcmsg* tc = reinterpret_cast<struct tcmsg*>( data );
+        }
         break;
     }
 
@@ -473,7 +424,7 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
     // auto ack set by default
     //void nl_socket_enable_auto_ack(struct nl_sock *sk);
     //void nl_socket_disable_auto_ack(struct nl_sock *sk);
-    status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkInitial, this);
+    status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Link, this);
     status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_FINISH, NL_CB_CUSTOM, &cbCmd_Msg_Finished, this);
     status = nl_connect(m_nl_sock_cmd, NETLINK_ROUTE);
     status = nl_socket_set_nonblocking(m_nl_sock_cmd); // poll returns immediately
@@ -495,7 +446,7 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
     }
 
     nl_socket_disable_seq_check(m_nl_sock_event);
-    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkChanges, this);
+    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Link, this);
     status = nl_connect(m_nl_sock_event, NETLINK_ROUTE);
     status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
     status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_LINK, 0);
@@ -561,7 +512,7 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
       throw std::runtime_error( "no statistics socket" );
     }
 
-    status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkChanges, this);
+    status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Link, this);
     status = nl_socket_modify_cb( m_nl_sock_statistics, NL_CB_FINISH, NL_CB_CUSTOM, &cbCmd_Msg_Finished, this);
     status = nl_connect( m_nl_sock_statistics, NETLINK_ROUTE);
 
