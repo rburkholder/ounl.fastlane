@@ -78,6 +78,9 @@ void AppFastLane::BuildInitialPage() {
             [this,if_index](){ // on clicked, in WApplication
               BOOST_LOG_TRIVIAL(info) << sessionId() << ",if_index clicked=" << if_index;
               if ( m_connectionStats64.connected() ) m_connectionStats64.disconnect();
+              m_bAbsoluteSet = false;
+              m_nRows = 0;
+              m_pModel->removeRows( 0, m_pModel->rowCount() );
               m_pServer->InterfaceStats64( // call into WServer, but comes back in different thread
                 if_index,
                 [this](const rtnl_link_stats64& stats){ // WServer threading into WApplication space

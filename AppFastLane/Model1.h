@@ -31,6 +31,8 @@ public:
   virtual bool setData(const Wt::WModelIndex &index, const Wt::cpp17::any &value, Wt::ItemDataRole role=Wt::ItemDataRole::Edit );
   virtual bool hasChildren(const Wt::WModelIndex &index) const;
 
+  virtual bool removeRows(int row, int count, const Wt::WModelIndex &parent=Wt::WModelIndex() );
+
   virtual Wt::WAbstractItemModel::DataMap itemData(const Wt::WModelIndex &index) const;
   virtual bool hasIndex(int row, int column, const Wt::WModelIndex &parent=Wt::WModelIndex()) const;
 protected:

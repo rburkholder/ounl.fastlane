@@ -116,6 +116,15 @@ bool Model1::insertRows (int row, int count, const Wt::WModelIndex &parent ) {
   return true;
 }
 
+bool Model1::removeRows(int row, int count, const Wt::WModelIndex &parent ) {
+  if ( 0 < m_vData.size() ) {
+    beginRemoveRows( parent, row, row + count - 1 );
+    m_vData.erase( m_vData.begin() + row, m_vData.begin() + row + count );
+    endRemoveRows();
+  }
+  return true;
+}
+
 bool Model1::setData(const Wt::WModelIndex &index, const std::any &value, Wt::ItemDataRole role ) {
   //std::cout
   //  << "Model1::setData: "
