@@ -20,6 +20,7 @@ AppFastLane::AppFastLane( const Wt::WEnvironment& env )
   ,m_cwContent( nullptr )
   ,m_cwFooter( nullptr )
   ,m_cwStatus( nullptr )
+  ,m_bAbsoluteSet( false )
   ,m_nRows {}
 {
 }
@@ -83,13 +84,24 @@ void AppFastLane::BuildInitialPage() {
                   m_pServer->post( // pass from WServer into WApplication
                     sessionId(),
                     [this,stats](){ // in WApplication space:
-                      m_pModel->insertRow( m_nRows );
-                      m_pModel->setData( m_pModel->index( m_nRows, 0 ), std::any( Wt::WDateTime::currentDateTime() ) );
-                      m_pModel->setData( m_pModel->index( m_nRows, 1 ), std::any( (long long)stats.rx_bytes ) );
-                      m_pModel->setData( m_pModel->index( m_nRows, 2 ), std::any( (long long)stats.tx_bytes ) );
-                      m_pModel->setData( m_pModel->index( m_nRows, 3 ), std::any( (long long)stats.multicast ) );
-                      m_nRows++;
-                      triggerUpdate();
+                      if ( m_bAbsoluteSet ) {
+                        m_pModel->insertRow( m_nRows );
+                        m_pModel->setData( m_pModel->index( m_nRows, 0 ), std::any( Wt::WDateTime::currentDateTime() ) );
+                        m_pModel->setData( m_pModel->index( m_nRows, 1 ), std::any( (long long)( stats.rx_packets - m_rx_packets ) ) );
+                        m_pModel->setData( m_pModel->index( m_nRows, 2 ), std::any( (long long)( stats.tx_packets - m_tx_packets ) ) );
+                        m_pModel->setData( m_pModel->index( m_nRows, 3 ), std::any( (long long)( stats.collisions - m_collisions ) ) );
+                        m_rx_packets = stats.rx_packets;
+                        m_tx_packets = stats.tx_packets;
+                        m_collisions = stats.collisions;
+                        m_nRows++;
+                        triggerUpdate();
+                      }
+                      else {
+                        m_rx_packets = stats.rx_packets;
+                        m_tx_packets = stats.tx_packets;
+                        m_collisions = stats.collisions;
+                        m_bAbsoluteSet = true;
+                      }
                     }
                     );
                 },
@@ -109,9 +121,9 @@ void AppFastLane::BuildInitialPage() {
   m_pModel = std::make_shared<Model1>();
   //m_pModel = std::make_shared<Wt::WStandardItemModel>(0, 4);
   m_pModel->setHeaderData( 0, Wt::Orientation::Horizontal, Wt::WString("Time"), Wt::ItemDataRole::Display );
-  m_pModel->setHeaderData( 1, Wt::Orientation::Horizontal, Wt::WString("TCP"), Wt::ItemDataRole::Display );
-  m_pModel->setHeaderData( 2, Wt::Orientation::Horizontal, Wt::WString("UDP"), Wt::ItemDataRole::Display );
-  m_pModel->setHeaderData( 3, Wt::Orientation::Horizontal, Wt::WString("ICMP"), Wt::ItemDataRole::Display );
+  m_pModel->setHeaderData( 1, Wt::Orientation::Horizontal, Wt::WString("rx packets"), Wt::ItemDataRole::Display );
+  m_pModel->setHeaderData( 2, Wt::Orientation::Horizontal, Wt::WString("tx packets"), Wt::ItemDataRole::Display );
+  m_pModel->setHeaderData( 3, Wt::Orientation::Horizontal, Wt::WString("collisions"), Wt::ItemDataRole::Display );
 
   m_pServer->m_signalStats.connect( this, &AppFastLane::UpdateModel );
 

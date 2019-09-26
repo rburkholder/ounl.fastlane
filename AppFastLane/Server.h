@@ -94,8 +94,8 @@ private:
     interface::link_t link;
     rtnl_link_stats64 stats;
     signalStats64_t signalStats64;
-    link_t( const interface::link_t& link_, const rtnl_link_stats64& stats_ )
-    : link( link_ ), stats( stats_ )
+    link_t( const interface::link_t& link_ )
+    : link( link_ )
     {}
   };
 

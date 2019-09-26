@@ -30,14 +30,18 @@ public:
 protected:
 private:
 
-  using pModel_t = std::shared_ptr<Model1>;
-
   const Wt::WEnvironment& m_environment;
   Server* m_pServer; // object managed by wt
 
   //Server::slotStats64_t m_slotStats64;
   boost::signals2::connection m_connectionStats64; // current interface of statistics
 
+  bool m_bAbsoluteSet;
+  __u64 m_rx_packets;
+  __u64 m_tx_packets;
+  __u64 m_collisions;
+
+  using pModel_t = std::shared_ptr<Model1>;
   pModel_t m_pModel;
   int m_nRows;
 

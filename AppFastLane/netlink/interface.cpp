@@ -167,10 +167,9 @@ void decode_ifinfomsg( ifinfomsg* ifinfo ) {
 // generic version of cbCmd_Msg_LinkInitial & cbCmd_Msg_LinkChanges
 int interface::cbCmd_Msg_Link( struct nl_msg* msg, void* arg ) {
 
-  BOOST_LOG_TRIVIAL(trace) << "interface::cbCmd_Msg_Link: ";
+  //BOOST_LOG_TRIVIAL(trace) << "interface::cbCmd_Msg_Link: ";
 
   interface* self = reinterpret_cast<interface*>( arg );
-  //std::cout << "interface::cbCmd_Msg_Link: " << std::endl;
 
   link_t linkInfo;
 
@@ -193,7 +192,7 @@ int interface::cbCmd_Msg_Link( struct nl_msg* msg, void* arg ) {
       case RTM_DELLINK: // much of the following is superfulous
         {
           ifinfomsg* ifinfo = reinterpret_cast<ifinfomsg*>( data );
-          decode_ifinfomsg( ifinfo );
+          //decode_ifinfomsg( ifinfo );
 
           linkInfo.if_index = ifinfo->ifi_index;
 
@@ -257,16 +256,47 @@ int interface::cbCmd_Msg_Link( struct nl_msg* msg, void* arg ) {
             attr = nla_next(attr, &remaining);
           };
 
-          if ( bStatsFound ) {
-            if ( nullptr != self->m_fLinkInitial ) self->m_fLinkInitial( std::move( linkInfo ), std::move( stats64 ) );
-            if ( nullptr != self->m_fLinkStats ) self->m_fLinkStats( ifinfo->ifi_index, std::move( stats64 ) );
-          }
-          else {
-            std::cerr << "stats64 not found with message type " << hdr->nlmsg_type << std::endl;
+          switch ( hdr->nlmsg_type ) {
+            case RTM_NEWLINK:
+              {
+                bool bAllowStats( false );
+                mapLink_t::const_iterator iter = self->m_mapLink.find( linkInfo.if_index );
+                if ( self->m_mapLink.end() == iter ) {
+                  std::pair<mapLink_t::iterator, bool> result;
+                  result = self->m_mapLink.emplace( mapLink_t::value_type( linkInfo.if_index, std::move( linkInfo ) ) );
+                  if ( result.second ) {
+                    if ( nullptr != self->m_fLinkNew ) self->m_fLinkNew( result.first->second );
+                    bAllowStats = true;
+                  }
+                  else {
+                    std::cerr << "interface::cbCmd_Msg_Link m_mapLink insertion error on if_index: " << linkInfo.if_index << std::endl;
+                  }
+                }
+                else {
+                  bAllowStats = true;
+                  // nothing to do, only emit signal on original 'new'
+                }
+                if ( bAllowStats && bStatsFound ) {
+                  if ( nullptr != self->m_fLinkStats ) self->m_fLinkStats( ifinfo->ifi_index, std::move( stats64 ) );
+                }
+              }
+              break;
+            case RTM_DELLINK:
+              {
+                mapLink_t::const_iterator iter = self->m_mapLink.find( linkInfo.if_index );
+                if ( self->m_mapLink.end() == iter ) {
+                  // nothing to do
+                }
+                else {
+                  if ( nullptr != self->m_fLinkDel ) self->m_fLinkDel( linkInfo.if_index );
+                  self->m_mapLink.erase( iter );
+                }
+              }
+              break;
           }
 
           // TODO: test what happens when loopback created in namespace
-          // TOOD: test what happens as veth moved in and out of namespace
+          // TODO: test what happens as veth moved in and out of namespace
         }
         break;
       case RTM_NEWADDR:
@@ -295,6 +325,9 @@ int interface::cbCmd_Msg_Link( struct nl_msg* msg, void* arg ) {
           struct tcmsg* tc = reinterpret_cast<struct tcmsg*>( data );
         }
         break;
+      default: {
+          std::cerr << "interface::cbCmd_Msg_Link; unprocessed message type: " << hdr->nlmsg_type << std::endl;
+        }
     }
 
     hdr = nlmsg_next(hdr, &length);
@@ -313,6 +346,22 @@ int interface::cbCmd_Msg_Finished(struct nl_msg *msg, void *arg) {
   //}
 
   return NL_OK;
+}
+
+int interface::cbCmd_Msg_LinkDelta( struct nl_msg* msg, void* arg ) {
+  interface* self = reinterpret_cast<interface*>( arg );
+  return cbCmd_Msg_Link( msg, arg );
+}
+
+int interface::cbCmd_Msg_LinkInitialDump( struct nl_msg* msg, void* arg ) {
+  interface* self = reinterpret_cast<interface*>( arg );
+  int status = nl_socket_modify_cb(self->m_nl_sock_cmd, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkRegularDump, self);
+  return cbCmd_Msg_Link( msg, arg );
+}
+
+int interface::cbCmd_Msg_LinkRegularDump( struct nl_msg* msg, void* arg ) {
+  interface* self = reinterpret_cast<interface*>( arg );
+  return cbCmd_Msg_Link( msg, arg );
 }
 
 void interface::cbCacheLinkInitial( struct nl_object* obj, void* data ) {
@@ -403,12 +452,13 @@ void interface::cbCacheLinkEvent2(
   //std::cout << std::endl;
 }
 
-interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, fLinkStats_t&& fLinkStats )
-: m_ePoll(EPoll::Quiescent), m_cntLoops(10 )
+interface::interface( asio::io_context& context, fLinkNew_t&& fLinkNew, fLinkDel_t&& fLinkDel, fLinkStats_t&& fLinkStats )
+: m_ePoll(EPoll::Quiescent), m_cntLoops( 10 )
  ,m_context( context )
  ,m_strand( m_context )
  ,m_timer( m_context )
- ,m_fLinkInitial( std::move( fLinkInitial ) )
+ ,m_fLinkNew( std::move( fLinkNew ) )
+ ,m_fLinkDel( std::move( fLinkDel ) )
  ,m_fLinkStats( std::move( fLinkStats ) )
 {
 
@@ -424,7 +474,7 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
     }
 
     nl_socket_disable_seq_check(m_nl_sock_event);
-    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Link, this);
+    status = nl_socket_modify_cb(m_nl_sock_event, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkDelta, this);
     status = nl_connect(m_nl_sock_event, NETLINK_ROUTE);
     status = nl_socket_set_nonblocking(m_nl_sock_event); // poll returns immediately
     status = nl_socket_add_memberships(m_nl_sock_event, RTNLGRP_LINK, 0);
@@ -443,7 +493,7 @@ interface::interface( asio::io_context& context, fLinkInitial_t&& fLinkInitial, 
     // auto ack set by default
     //void nl_socket_enable_auto_ack(struct nl_sock *sk);
     //void nl_socket_disable_auto_ack(struct nl_sock *sk);
-    status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_Link, this);
+    status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_VALID, NL_CB_CUSTOM, &cbCmd_Msg_LinkInitialDump, this);
     status = nl_socket_modify_cb(m_nl_sock_cmd, NL_CB_FINISH, NL_CB_CUSTOM, &cbCmd_Msg_Finished, this);
     status = nl_connect(m_nl_sock_cmd, NETLINK_ROUTE);
     status = nl_socket_set_nonblocking(m_nl_sock_cmd); // poll returns immediately

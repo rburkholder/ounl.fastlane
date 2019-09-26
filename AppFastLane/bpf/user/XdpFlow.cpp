@@ -152,7 +152,7 @@ XdpFlow_impl::XdpFlow_impl() {
   struct rlimit rlim = {RLIM_INFINITY, RLIM_INFINITY};
 
   //m_if_index = 1; // use lo for now
-  m_if_index = 13;
+  m_if_index = 19;
 
   //__u32 xdp_flags( XDP_FLAGS_SKB_MODE | XDP_FLAGS_DRV_MODE );
   //__u32 xdp_flags( XDP_FLAGS_SKB_MODE  );
@@ -244,6 +244,7 @@ XdpFlow_impl::XdpFlow_impl() {
 
   /* Open and configure the AF_XDP (xsk) socket */
   //m_xsk_socket = xsk_configure_socket(&m_config, m_umem);
+  // this seems to add an program, to socket
   m_xsk_socket = xsk_configure_socket();
   if ( m_xsk_socket == NULL) {
     fprintf(stderr, "ERROR: Can't setup AF_XDP socket: \"%s\"\n",
@@ -363,7 +364,8 @@ struct XdpFlow_impl::xsk_socket_info* XdpFlow_impl::xsk_configure_socket()
     return NULL;
 
   // temporary test:
-  char ifname[] = "veth-nvpn-v90";
+  char ifname[] = "xdp90";
+  //char ifname[] = "lo";
 
   xsk_info->umem = m_umem;
   xsk_cfg.rx_size = XSK_RING_CONS__DEFAULT_NUM_DESCS;
@@ -378,7 +380,8 @@ struct XdpFlow_impl::xsk_socket_info* XdpFlow_impl::xsk_configure_socket()
      m_umem->umem,
      &xsk_info->rx,
      &xsk_info->tx,
-     &xsk_cfg);
+     &xsk_cfg
+     );
 
   if (ret)
     goto error_exit;
@@ -419,7 +422,7 @@ error_exit:
 void emit( __u32 addr ) {
   unsigned char* p( (unsigned char*)&addr );
   std::cout
-    << (uint16_t)p[0]
+    <<        (uint16_t)p[0]
     << "." << (uint16_t)p[1]
     << "." << (uint16_t)p[2]
     << "." << (uint16_t)p[3]
@@ -867,7 +870,7 @@ void XdpFlow::Run() {
 void XdpFlow::UpdateStats( const boost::system::error_code& ec ) {
 
   if ( !ec && m_bKeepGoing ) {
-    m_pXdpFlow_impl->UpdateStats();
+//    m_pXdpFlow_impl->UpdateStats();
     //m_pXdpFlow_impl->PollForPackets(); // currently works in blocking mode
     Run();
   }
