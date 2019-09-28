@@ -1,0 +1,11 @@
+clion requirements:
+
+ Add the following line to either /etc/sysctl.conf file or a new *.conf file (e.g. idea.conf) under /etc/sysctl.d/ directory:
+fs.inotify.max_user_watches = 524288
+
+2. Then run this command to apply the change:
+sudo sysctl -p --system
+
+Could you please disable Loop Condition is not updated inside loop, all Data flow analysis and Unused code inspections on the Settings | Editor | Inspections tab
+
+
