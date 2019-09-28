@@ -1,3 +1,12 @@
+2019/09/28
+
+Re: [PATCH bpf] libbpf: count present CPUs, not theoretically possible
+
+BTW, if user wants to override the size of maps, they can do it easily
+either in map definition or programmatically after bpf_object__open,
+but before bpf_object__load, so there is no need for flags, it's all
+easily achievable with existing API.
+
 2019/08/26
 
 early doc on parts of messages and attributes
