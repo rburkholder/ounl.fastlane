@@ -1,6 +1,7 @@
 # ounl.fastlane
 Embedded Packet/Network Security
 
+    apt install jq binutils-dev libreadline-dev
     cd /usr/src
     git clone https://github.com/rburkholder/libs-build.git
     cd libs-build
