@@ -1,3 +1,9 @@
+2019/09/29
+
+inner/outer hashing tests with gre/ipv4/ipv6
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit/?id=2800f2485417a80633285503c782dd9416df85e4
+
+
 2019/09/28
 
 Re: [PATCH bpf] libbpf: count present CPUs, not theoretically possible
