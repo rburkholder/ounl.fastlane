@@ -12,6 +12,9 @@ add_library(
   sock_stats.c
   )
 
+# in kernel v5.4, bpf_helpers.h may change directories
+# [PATCH bpf-next 2/6] libbpf: move bpf_helpers.h, bpf_endian.h into libbpf
+
 target_include_directories(
   sock_stats PRIVATE
     ${SRC_LINUX}/tools/lib
