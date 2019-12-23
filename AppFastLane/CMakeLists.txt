@@ -26,7 +26,7 @@ find_package(Boost 1.69.0 REQUIRED COMPONENTS system log log_setup program_optio
 
 #message("boost lib: ${Boost_LIBRARIES}")
 
-set(SRC_LINUX /usr/src/linux-5.3.1)
+set(SRC_LINUX /usr/src/linux-5.4.6)
 
 set(
   file_h
@@ -72,6 +72,8 @@ add_executable(
   )
 
 target_compile_definitions(${PROJECT_NAME} PUBLIC BOOST_LOG_DYN_LINK BOOST_ASIO_SEPARATE_COMPILATION )
+target_compile_options(${PROJECT_NAME} PUBLIC -DHAVE_ATTR_TEST=0)
+
 
 target_include_directories(
   ${PROJECT_NAME} PRIVATE
@@ -96,6 +98,7 @@ target_link_directories(
   ${PROJECT_NAME} PUBLIC
     /usr/local/lib
     ${SRC_LINUX}/tools/lib/bpf
+#    ${SRC_LINUX}/tools/perf/lib
   )
 
 target_link_libraries(
@@ -110,6 +113,7 @@ target_link_libraries(
     elf
     nl-3
     nl-route-3
+#    perf
   )
 
 install(TARGETS ${PROJECT_NAME} RUNTIME DESTINATION bin)

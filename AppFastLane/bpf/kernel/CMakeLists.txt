@@ -1,11 +1,14 @@
 # ounl.fastlane/AppFastLane/bpf/kernel (bpf kernel load modules)
 cmake_minimum_required (VERSION 3.13)
 
+# 2019/12/22
+# needs: apt-get install gcc-multilib g++-multilib
+
 project(bpf_kernel)
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 
-set(SRC_LINUX /usr/src/linux-5.3.1)
+set(SRC_LINUX /usr/src/linux-5.4.6)
 
 add_library(
   sock_stats OBJECT
